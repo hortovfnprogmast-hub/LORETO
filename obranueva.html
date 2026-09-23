@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alta de Obra Nueva | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+        .user-dropdown { position: absolute; top: 60px; right: 15px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid var(--border-color); width: 220px; z-index: 1000; display: none; overflow: hidden; }
+        .user-dropdown.show { display: block; }
+        .user-card { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+        .user-meta .user-name { font-weight: 700; font-size: 14px; color: var(--text-main); }
+        .user-actions .dropdown-link { display: flex; align-items: center; gap: 8px; padding: 12px 15px; color: var(--danger); font-size: 14px; text-decoration: none; font-weight: 500; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 900px; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; text-align: center; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; text-transform: uppercase; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .form-card { background: #FFFFFF; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 24px; padding: 24px; }
+        .section-title-form { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 700; color: var(--primary-blue); margin: 0 0 20px 0; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
+        .section-title-form i { color: var(--primary-blue); }
+        
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap; }
+        .form-group { margin-bottom: 16px; flex: 1; min-width: 200px; }
+        .form-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+        .form-input, .form-select, textarea.form-input { width: 100%; padding: 14px 16px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; color: var(--text-main); box-sizing: border-box; font-family: inherit; outline: none; transition: all 0.2s ease; }
+        .form-input:focus, .form-select:focus, textarea.form-input:focus { background-color: #FFFFFF; border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(38, 63, 164, 0.1); }
+        .form-input[readonly] { background-color: #f1f5f9; color: var(--text-muted); cursor: not-allowed; }
+
+        .btn-enviar { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 15px 20px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; background: var(--primary-blue); color: white; border: none; width: 100%; }
+
+        #custom-alert { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .modal-card-alert { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        #alert-icon-container { margin-bottom: 16px; display: flex; justify-content: center; }
+        #alert-title { margin: 0 0 8px 0; font-size: 18px; color: var(--text-main); font-weight: 700; }
+        #alert-msg { margin: 0 0 24px 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; text-align: left; }
+        #alert-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; color: white; background: var(--primary-blue); font-weight: 700; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Alta de Obra Nueva</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial-header" onclick="document.getElementById('user-dropdown').classList.toggle('show')">U</div>
+            <div class="user-dropdown" id="user-dropdown">
+                <div class="user-card"><div class="user-meta"><div class="user-name" id="user-dropdown-name">Cargando...</div></div></div>
+                <div class="user-actions"><a href="index.html" class="dropdown-link" onclick="localStorage.clear();"><i data-lucide="log-out" style="width:16px;"></i> Cerrar sesión</a></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                
+                <div class="page-header">
+                    <h1 id="titulo-pagina">Registro de Proyecto</h1>
+                    <p id="subtitulo-pagina">Captura los datos generales para dar de alta una nueva obra</p>
+                </div>
+
+                <form id="formObraNueva">
+                    
+                    <div class="form-card" style="border-left: 4px solid var(--primary-blue);">
+                        <h3 class="section-title-form"><i data-lucide="briefcase"></i> Información del Proyecto</h3>
+                        <div class="form-group">
+                            <label class="form-label">Proyecto / Nombre de la Obra *</label>
+                            <input type="text" class="form-input" id="proyecto-input" placeholder="Ej. Construcción Plaza Norte" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ubicación (Dirección de obra) *</label>
+                            <input type="text" class="form-input" id="ubicacion-input" placeholder="Captura la dirección completa" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Folio de Obra</label>
+                            <input type="text" class="form-input" id="folio_obra" value="" readonly placeholder="Se generará automáticamente al guardar">
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title-form"><i data-lucide="calendar-clock"></i> Fechas y Responsables</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Cliente / Propietario</label>
+                                <input type="text" class="form-input" id="cliente-input" placeholder="Nombre de la empresa o cliente">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Proveedor Principal</label>
+                                <input type="text" class="form-input" id="proveedor-input" placeholder="Proveedor de materiales principal">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Fecha de Inicio</label>
+                                <input type="date" class="form-input" id="fecha-inicio-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Fecha de Término Estimada</label>
+                                <input type="date" class="form-input" id="fecha-termino-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Responsable de Obra</label>
+                            <input type="text" class="form-input" id="responsable-input" placeholder="Nombre del residente o encargado">
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title-form"><i data-lucide="dollar-sign"></i> Presupuesto y Estado</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Monto Estimado (MXN)</label>
+                                <input type="number" class="form-input" id="monto-input" placeholder="0.00" min="0" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Estado del Proyecto</label>
+                                <select class="form-select" id="estado-input">
+                                    <option value="Planificado">Planificado</option>
+                                    <option value="En Proceso">En Proceso</option>
+                                    <option value="Pausado">Pausado</option>
+                                    <option value="Terminado">Terminado</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Notas Adicionales</label>
+                            <textarea class="form-input" id="notas-input" rows="3" placeholder="Observaciones, especificaciones clave o requisitos..."></textarea>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 10px; max-width: 400px; margin-left: auto; margin-right: auto; padding-bottom: 40px;">
+                        <button type="button" id="btn-guardar-obra" class="btn-enviar" onclick="guardarObra()"><i data-lucide="save"></i> Dar de Alta Obra</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <div id="custom-alert"><div class="modal-card-alert"><div id="alert-icon-container"></div><h3 id="alert-title"></h3><p id="alert-msg"></p><button id="alert-btn" onclick="closeCustomAlert()">Aceptar</button></div></div>
+
+    <script>
+        // Configuración de Firebase actualizada
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+        let appDataLoreto = { nombre: 'Usuario', usuario: 'demo' };
+        let editId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const usuario = localStorage.getItem('usuario'), nombre = localStorage.getItem('nombre');
+            if (!usuario) { window.location.href = 'index.html'; return; }
+            appDataLoreto.usuario = usuario; appDataLoreto.nombre = nombre || 'Usuario';
+            document.getElementById('user-initial-header').innerText = appDataLoreto.nombre.charAt(0).toUpperCase();
+            document.getElementById('user-dropdown-name').innerText = appDataLoreto.nombre;
+
+            fetch('menu.html?v=2').then(res => res.text()).then(html => {
+                document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+                const linkObra = document.getElementById('link-obra-nueva'); if(linkObra) linkObra.classList.add('active');
+            }).catch(() => {
+                document.getElementById('sidebar').innerHTML = `<nav class="sidebar-nav"><div class="sidebar-section"><span class="section-title">Navegación</span><a href="index.html" class="nav-item"><i data-lucide="home" style="width:18px;height:18px;"></i> Inicio</a></div></nav>`;
+                lucide.createIcons();
+            });
+
+            document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+            window.addEventListener('click', (e) => { if (!e.target.matches('#user-initial-header')) { const dd = document.getElementById('user-dropdown'); if(dd.classList.contains('show')) dd.classList.remove('show'); } });
+            
+            // Revisar si estamos en modo edición
+            const urlParams = new URLSearchParams(window.location.search);
+            editId = urlParams.get('id');
+            if(editId) {
+                cargarDatosEdicion(editId);
+            }
+            
+            lucide.createIcons();
+        });
+
+        function showCustomAlert(t, m, s=true) {
+            const a = document.getElementById('custom-alert');
+            document.getElementById('alert-title').innerText = t;
+            document.getElementById('alert-msg').innerText = m;
+            const i = document.getElementById('alert-icon-container'), b = document.getElementById('alert-btn');
+            if(s){ i.innerHTML='<i data-lucide="check-circle" style="width:48px;height:48px;color:var(--success)"></i>'; b.style.background='var(--success)'; }
+            else{ i.innerHTML='<i data-lucide="alert-triangle" style="width:48px;height:48px;color:var(--danger)"></i>'; b.style.background='var(--danger)'; }
+            a.style.display = 'flex'; lucide.createIcons();
+        }
+        function closeCustomAlert() { document.getElementById('custom-alert').style.display = 'none'; }
+
+        async function cargarDatosEdicion(id) {
+            try {
+                const doc = await db.collection("obras_loreto").doc(id).get();
+                if(doc.exists) {
+                    const o = doc.data();
+                    document.getElementById('titulo-pagina').innerText = "Editar Proyecto";
+                    document.getElementById('subtitulo-pagina').innerText = `Modificando la obra: ${o.proyecto}`;
+                    document.getElementById('btn-guardar-obra').innerHTML = '<i data-lucide="save"></i> Guardar Cambios';
+                    
+                    document.getElementById('folio_obra').value = o.folio_obra || id;
+                    document.getElementById('proyecto-input').value = o.proyecto || '';
+                    document.getElementById('ubicacion-input').value = o.ubicacion || '';
+                    document.getElementById('cliente-input').value = o.cliente || '';
+                    document.getElementById('proveedor-input').value = o.proveedor || '';
+                    document.getElementById('fecha-inicio-input').value = o.fecha_inicio || '';
+                    document.getElementById('fecha-termino-input').value = o.fecha_termino || '';
+                    document.getElementById('responsable-input').value = o.responsable || '';
+                    document.getElementById('monto-input').value = o.monto || '';
+                    document.getElementById('estado-input').value = o.estado || 'Planificado';
+                    document.getElementById('notas-input').value = o.notas || '';
+                    lucide.createIcons();
+                }
+            } catch(e) {
+                showCustomAlert("Error", "No se pudieron cargar los datos: " + e.message, false);
+            }
+        }
+
+        async function obtenerFolioObra() {
+            const r = db.collection('metadata').doc('contadores_loreto');
+            return await db.runTransaction(async t => { 
+                const d = await t.get(r); 
+                let n = (d.exists && d.data().obras_folio) ? d.data().obras_folio + 1 : 1; 
+                t.set(r, { obras_folio: n }, { merge: true }); 
+                return `OB-${n.toString().padStart(4, '0')}`; 
+            });
+        }
+
+        async function guardarObra() {
+            const btn = document.getElementById('btn-guardar-obra');
+            const proyecto = document.getElementById('proyecto-input').value.trim();
+            const ubicacion = document.getElementById('ubicacion-input').value.trim();
+
+            if(!proyecto || !ubicacion) {
+                showCustomAlert("Atención", "El Proyecto y la Ubicación son obligatorios.", false);
+                return;
+            }
+
+            btn.disabled = true; btn.innerText = 'Guardando...';
+
+            try {
+                const datosObra = {
+                    proyecto: proyecto,
+                    ubicacion: ubicacion,
+                    cliente: document.getElementById('cliente-input').value || '',
+                    proveedor: document.getElementById('proveedor-input').value || '',
+                    fecha_inicio: document.getElementById('fecha-inicio-input').value || '',
+                    fecha_termino: document.getElementById('fecha-termino-input').value || '',
+                    responsable: document.getElementById('responsable-input').value || '',
+                    monto: parseFloat(document.getElementById('monto-input').value) || 0,
+                    estado: document.getElementById('estado-input').value || 'Planificado',
+                    notas: document.getElementById('notas-input').value || '',
+                };
+
+                if(editId) {
+                    // Modo Edición
+                    datosObra.modificado_por = appDataLoreto.usuario;
+                    datosObra.ultima_modificacion = new Date().toISOString();
+                    await db.collection("obras_loreto").doc(editId).update(datosObra);
+                    showCustomAlert("Éxito", "Los cambios se han guardado correctamente.", true);
+                    setTimeout(() => window.location.href = 'asignacionobra.html', 1500);
+                } else {
+                    // Modo Creación
+                    const folio = await obtenerFolioObra();
+                    datosObra.folio_obra = folio;
+                    datosObra.registrado_por = appDataLoreto.usuario;
+                    datosObra.fecha_creacion = new Date().toISOString();
+                    
+                    await db.collection("obras_loreto").doc(folio).set(datosObra);
+                    showCustomAlert("Éxito", `La obra ${proyecto} se ha registrado con el folio ${folio}.`, true);
+                    document.getElementById('formObraNueva').reset();
+                }
+
+            } catch(er) {
+                console.error(er);
+                showCustomAlert("Error", "Ocurrió un error: " + er.message, false);
+            } finally {
+                btn.disabled = false; 
+                btn.innerHTML = editId ? '<i data-lucide="save"></i> Guardar Cambios' : '<i data-lucide="save"></i> Dar de Alta Obra';
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>
