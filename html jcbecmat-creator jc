@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio de Sesión - Loreto Ingeniería</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- SDKs de Firebase añadidos aquí -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #263fa4; /* Fondo azul original */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 21px 12px 12px 12px; 
+            box-sizing: border-box;
+        }
+
+        .login-box {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 12px 25px 15px 25px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%; 
+            max-width: 550px; 
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .main-logo {
+            width: 100px; 
+            height: auto;
+            margin-top: 0px; 
+            margin-bottom: 15px; 
+        }
+
+        .company-name {
+            font-size: 13pt; 
+            color: #263fa4;
+            font-weight: bold;
+            margin-bottom: 20px; 
+            line-height: 1.4;
+        }
+
+        .no-wrap {
+            white-space: nowrap;
+        }
+
+        .welcome-text {
+            font-size: 16px; 
+            color: #333333;
+            margin-bottom: 25px; 
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px; 
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px; 
+            color: #555;
+            margin-bottom: 8px; 
+            font-weight: 600;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 18px 16px 18px 45px; 
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 15px; 
+            background-color: #f9f9f9;
+        }
+
+        .input-group .field-icon {
+            position: absolute;
+            left: 14px; 
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 16px; 
+        }
+
+        .input-group .toggle-password {
+            position: absolute;
+            right: 14px; 
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            cursor: pointer;
+            font-size: 16px; 
+        }
+
+        .login-button {
+            background-color: #263fa4;
+            color: #ffffff;
+            border: none;
+            padding: 18px; 
+            border-radius: 6px;
+            font-size: 17px; 
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 5px;
+            margin-bottom: 5px; 
+            transition: background-color 0.3s;
+        }
+        
+        .login-button:hover {
+            background-color: #1a2a6e;
+        }
+        
+        .login-button:disabled {
+            background-color: #6c7ebf;
+            cursor: not-allowed;
+        }
+
+        #mensaje {
+            margin-bottom: 5px;
+            font-size: 13px; 
+            font-weight: bold;
+            min-height: 18px; 
+        }
+
+        .bottom-logo {
+            width: 212px; 
+            height: auto;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .copyright {
+            font-size: 10px; 
+            color: #ffffff;
+            margin-top: 15px; 
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="Logo Loreto" class="main-logo">
+        
+        <div class="company-name">
+            <span class="no-wrap">Loreto Ingeniería Construcción</span><br>
+            <span class="no-wrap">Edificación y Remodelación</span>
+        </div>
+        
+        <div class="welcome-text">Bienvenido</div>
+
+        <div class="input-group">
+            <label for="username">Usuario</label>
+            <div class="input-wrapper">
+                <i class="fas fa-id-badge field-icon"></i>
+                <input type="text" id="username" placeholder="ID de Usuario">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="password">Contraseña</label>
+            <div class="input-wrapper">
+                <i class="fas fa-lock field-icon"></i>
+                <input type="password" id="password" placeholder="••••••••">
+                <i class="fas fa-eye toggle-password" id="togglePasswordIcon"></i>
+            </div>
+        </div>
+
+        <button type="button" class="login-button" id="btn-login" onclick="iniciarSesion()">Iniciar sesión</button>
+        
+        <div id="mensaje"></div>
+
+        <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Maquinaria" class="bottom-logo">
+    </div>
+
+    <div class="copyright">
+        © 2026 LORETO INGENIERÍA. TODOS LOS DERECHOS RESERVADOS.
+    </div>
+
+    <script>
+        // Configuración de Firebase actualizada
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+        const passwordField = document.getElementById('password');
+
+        togglePasswordIcon.addEventListener('click', function () {
+            const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordField.setAttribute('type', type);
+            
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+
+        function iniciarSesion() {
+            var user = document.getElementById("username").value;
+            var pass = document.getElementById("password").value;
+            var btnLogin = document.getElementById("btn-login");
+            var mensajeDiv = document.getElementById("mensaje");
+            
+            if (!user || !pass) {
+                mensajeDiv.innerText = "Ingresa tus credenciales";
+                mensajeDiv.style.color = "#d93025";
+                return;
+            }
+
+            btnLogin.innerText = "Validando...";
+            btnLogin.disabled = true;
+            mensajeDiv.innerText = "";
+            
+            // LA URL DE TU SCRIPT DE GOOGLE
+            var scriptURL = "https://script.google.com/macros/s/AKfycbyQBuAUlC0bc8dYgUHgwbTNOa7ut6dKB_Ls6sqgDbKyHF51zKofE9cQ7rWp_SH2X9k/exec";
+
+            fetch(scriptURL, {
+                method: 'POST',
+                body: JSON.stringify({ usuario: user, contrasena: pass }),
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                }
+            })
+            .then(response => response.json())
+            .then(respuesta => {
+                btnLogin.innerText = "Iniciar sesión";
+                btnLogin.disabled = false;
+                
+                if(respuesta.success) {
+                    mensajeDiv.style.color = "#188038";
+                    mensajeDiv.innerText = "¡Bienvenido! Redirigiendo...";
+                    
+                    // Guardamos en LocalStorage
+                    localStorage.setItem('usuario', user); 
+                    localStorage.setItem('privilegio', respuesta.privilegio);
+                    localStorage.setItem('nombre', respuesta.nombre); 
+                    
+                    // REGISTRO AUTOMÁTICO EN FIREBASE
+                    db.collection("usuarios").doc(user).set({
+                        nombre: respuesta.nombre, 
+                        usuario: user
+                    }, { merge: true })
+                    .then(() => {
+                        console.log("Usuario registrado/actualizado en Firebase");
+                    })
+                    .catch((error) => {
+                        console.error("Error al registrar en Firebase: ", error);
+                    });
+                    
+                    setTimeout(() => {
+                        window.location.href = "inicio.html";
+                    }, 1000);
+                } else {
+                    mensajeDiv.style.color = "#d93025";
+                    mensajeDiv.innerText = respuesta.mensaje;
+                }
+            })
+            .catch(error => {
+                btnLogin.innerText = "Iniciar sesión";
+                btnLogin.disabled = false;
+                mensajeDiv.style.color = "#d93025";
+                mensajeDiv.innerText = "Error de red. Reintenta.";
+                console.error('Error:', error);
+            });
+        }
+    </script>
+
+</body>
+</html>
