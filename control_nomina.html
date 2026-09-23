@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control de Nómina | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* --- HEADER Y LAYOUT --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 98%; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        /* Filtros */
+        .filters-bar { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid var(--border-color); display: flex; gap: 16px; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .filter-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+        .form-input { padding: 0 16px; height: 42px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; color: var(--text-main); width: 100%; box-sizing: border-box; background: var(--bg-color); transition: all 0.2s;}
+        .form-input:focus { background: white; outline: none; border-color: var(--primary-blue); }
+        .btn-secondary { height: 42px; background: white; color: var(--text-main); border: 1px solid var(--border-color); padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
+        .btn-secondary:hover { background: var(--bg-color); }
+
+        /* Tabla */
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-color); background: white;}
+        .data-table { width: 100%; border-collapse: collapse; min-width: 1300px; } /* Ajuste el ancho mínimo porque quitamos una columna */
+        .data-table th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 12px 8px; text-align: center; border-bottom: 2px solid var(--border-color); white-space: nowrap; border-right: 1px solid var(--border-color); }
+        .data-table td { padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 12px; color: var(--text-main); vertical-align: middle; text-align: center; border-right: 1px solid var(--border-color); }
+        .data-table tbody tr:hover { background-color: #f8fafc; }
+        
+        .avatar-img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); }
+        .money-text { font-weight: 800; color: #16a34a; }
+        .money-base { font-weight: 700; color: var(--primary-blue); }
+        
+        .btn-action-red { height: 32px; background: var(--danger); color: white; border: none; padding: 0 12px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; transition: 0.2s;}
+        .btn-action-red:hover { background: #b91c1c;}
+
+        /* Modales */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .modal-card { background: white; width: 100%; max-width: 400px; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; animation: popIn 0.3s;}
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .modal-header-custom { padding: 20px 24px; border-bottom: 1px solid var(--border-color); background: var(--light-blue); position: relative; }
+        .modal-header-custom h2 { font-size: 18px; font-weight: 800; margin: 0; color: var(--primary-blue); }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); position: absolute; top: 15px; right: 20px; }
+        
+        .modal-body { padding: 24px; background: var(--bg-color); }
+        
+        .modal-footer { padding: 16px 24px; background: #fff; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; }
+        .btn-cancelar { background: white; color: var(--text-main); border: 1px solid var(--border-color); height: 42px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 20px; display: inline-flex; align-items: center; gap: 8px;}
+        .btn-guardar { background: var(--primary-blue); color: white; border: none; height: 42px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 24px; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;}
+        .btn-guardar:hover { background: #1a2a6e; }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Control de Nómina</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">C</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Control Global de Nóminas</h1>
+                    <p>Panel para Contadores. Administra el salario semanal de cada trabajador. Los cálculos base por hora y turnos se generan automáticamente.</p>
+                </div>
+
+                <form class="filters-bar">
+                    <div class="filter-group">
+                        <label class="filter-label">Buscar Trabajador</label>
+                        <input type="text" class="form-input" id="filtro-buscar" placeholder="Escribe el nombre del trabajador...">
+                    </div>
+                    <button class="btn-secondary" type="button" onclick="renderTabla()">
+                        <i data-lucide="search" style="width: 16px;"></i> Buscar
+                    </button>
+                </form>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p>Cargando información salarial...</p>
+                </div>
+
+                <div class="table-responsive" id="tabla-container" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 3%;">#</th>
+                                <th style="width: 5%;">FOTO</th>
+                                <th style="width: 15%; text-align: left;">NOMBRE DEL TRABAJADOR</th>
+                                <th>CARGO</th>
+                                <th>CUENTA CLABE</th>
+                                <th style="background: #dcfce7; color: #166534;">SALARIO<br>SEMANAL</th>
+                                
+                                <th>SALARIO BASE<br>DIARIO</th>
+                                <th>COSTO HORA<br>(DIURNO)</th>
+                                <th style="background: #f1f5f9;">COSTO HORA<br>(NOCTURNO)</th>
+                                
+                                <th>ACCIÓN</th>
+                                <th style="width: 10%;">FECHA Y HORA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalSalario" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header-custom">
+                <h2 id="modal-nombre">Editar Salario</h2>
+                <button class="modal-close" onclick="cerrarModal()">&times;</button>
+                <input type="hidden" id="modal-uid">
+            </div>
+            
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">Ingresa el nuevo salario semanal neto. Los salarios base y costos por hora se calcularán automáticamente al guardar.</p>
+                <div class="filter-group">
+                    <label class="filter-label" style="color: var(--primary-blue); font-size: 12px;">Salario Semanal ($)</label>
+                    <input type="number" step="0.01" class="form-input" id="modal-salario-input" style="font-size: 20px; font-weight: bold; color: #16a34a; text-align: right;" placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" onclick="cerrarModal()"><i data-lucide="x-circle" style="width:16px;"></i> Cancelar</button>
+                <button type="button" class="btn-guardar" onclick="guardarSalario()"><i data-lucide="save" style="width:16px;"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Configuración de Firebase actualizada
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+        authDomain: "loretoapp-2ca14.firebaseapp.com",
+        projectId: "loretoapp-2ca14",
+        storageBucket: "loretoapp-2ca14.firebasestorage.app",
+        messagingSenderId: "794212467801",
+        appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+    };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.firestore();
+
+    let dataGlobal = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Cargar el menú lateral dinámicamente
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkControlNomina = document.getElementById('link-control-nomina'); if(linkControlNomina) linkControlNomina.classList.add('active');
+        });
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        cargarNominas();
+    });
+
+    function formatMoney(amount) {
+        return parseFloat(amount).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'});
+    }
+
+    function formatDate(timestampObj) {
+        if (!timestampObj) return '-';
+        let date = timestampObj.toDate ? timestampObj.toDate() : new Date(timestampObj);
+        return date.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    async function cargarNominas() {
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('tabla-container').style.display = 'none';
+        
+        try {
+            // 1. Obtener Expedientes (para fotos, nombres y clabe)
+            const expSnap = await db.collection("expedientes_personal").get();
+            let workers = [];
+            expSnap.forEach(doc => {
+                const d = doc.data();
+                const nombreCompleto = `${d.nombre || ''} ${d.paterno || ''} ${d.materno || ''}`.trim().toUpperCase();
+                let foto = (d.urls_fotos && d.urls_fotos.selfie) ? d.urls_fotos.selfie : 'https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg';
+                let clabe = d.cuenta_clabe || 'Sin registrar';
+                let cargo = d.cargo || d.puesto || 'Trabajador';
+                
+                workers.push({ id: doc.id, nombre: nombreCompleto || 'SIN NOMBRE', foto: foto, clabe: clabe, cargo: cargo });
+            });
+
+            // 2. Obtener la BD de Nomina
+            const nomSnap = await db.collection("nominas").get();
+            let nomData = {};
+            nomSnap.forEach(doc => { nomData[doc.id] = doc.data(); });
+
+            dataGlobal = workers.map(w => {
+                return { ...w, ...(nomData[w.id] || { salario_semanal: 0 }) };
+            });
+
+            dataGlobal.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            renderTabla();
+        } catch (e) { 
+            console.error("Error", e); 
+            alert("Error al cargar los datos.");
+        }
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('tabla-container').style.display = 'block';
+    }
+
+    function renderTabla() {
+        const tbody = document.getElementById('tabla-body');
+        tbody.innerHTML = '';
+        const fBuscar = document.getElementById('filtro-buscar').value.toLowerCase();
+
+        let filtrados = dataGlobal.filter(t => {
+            if(fBuscar && !(t.nombre || "").toLowerCase().includes(fBuscar)) return false;
+            return true;
+        });
+
+        if(filtrados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="11" style="padding: 30px; color: var(--text-muted);">No hay trabajadores que coincidan con la búsqueda.</td></tr>`;
+            return;
+        }
+
+        let contador = 1;
+
+        filtrados.forEach(row => {
+            let tr = document.createElement('tr');
+            
+            // Cálculos actualizados para coincidir con la vista del trabajador
+            let salSemanal = parseFloat(row.salario_semanal) || 0;
+            let baseDiario = salSemanal / 6;
+            let horaDiurno = baseDiario / 8;
+            
+            let baseNocturnoTemp = salSemanal / 5;
+            let horaNocturno = baseNocturnoTemp / 8;
+
+            let fechaHora = row.ultima_actualizacion ? formatDate(row.ultima_actualizacion).replace(', ', '<br>') : '-';
+
+            let html = `
+                <td style="font-weight: 800; color: var(--text-muted);">${contador}</td>
+                <td><img src="${row.foto}" class="avatar-img"></td>
+                <td style="text-align: left; font-weight: 700; color: var(--primary-blue);">${row.nombre}</td>
+                <td>${row.cargo}</td>
+                <td style="font-weight: 600;">${row.clabe}</td>
+                <td class="money-text" style="font-size: 14px;">${formatMoney(salSemanal)}</td>
+                
+                <td class="money-base">${formatMoney(baseDiario)}</td>
+                <td>${formatMoney(horaDiurno)}</td>
+                <td style="background: #f1f5f9; font-weight: 600; color: var(--primary-blue);">${formatMoney(horaNocturno)}</td>
+                
+                <td>
+                    <button class="btn-action-red" onclick="abrirModal('${row.id}', '${row.nombre}', ${salSemanal})">
+                        <i data-lucide="banknote"></i> Editar Salario
+                    </button>
+                </td>
+                <td style="font-size: 10px; color: var(--text-muted); font-weight: 600;">${fechaHora}</td>
+            `;
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+            contador++;
+        });
+        
+        lucide.createIcons();
+    }
+
+    function abrirModal(id, nombre, actualSalario) {
+        document.getElementById('modal-uid').value = id;
+        document.getElementById('modal-nombre').innerText = `Editar: ${nombre}`;
+        document.getElementById('modal-salario-input').value = actualSalario > 0 ? actualSalario : '';
+        document.getElementById('modalSalario').style.display = 'flex';
+        lucide.createIcons();
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalSalario').style.display = 'none';
+    }
+
+    async function guardarSalario() {
+        const id = document.getElementById('modal-uid').value;
+        const nuevoSalario = parseFloat(document.getElementById('modal-salario-input').value) || 0;
+
+        const btn = document.querySelector('#modalSalario .btn-guardar');
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Guardando...';
+
+        try {
+            await db.collection("nominas").doc(id).set({
+                salario_semanal: nuevoSalario,
+                ultima_actualizacion: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            
+            cerrarModal();
+            cargarNominas(); 
+        } catch (e) {
+            console.error(e);
+            alert("Error al guardar el salario.");
+        } finally {
+            btn.disabled = false; btn.innerHTML = oldHtml;
+        }
+    }
+</script>
+</body>
+</html>
