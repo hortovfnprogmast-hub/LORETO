@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asignación de Obra | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+        .user-dropdown { position: absolute; top: 60px; right: 15px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid var(--border-color); width: 220px; z-index: 1000; display: none; overflow: hidden; }
+        .user-dropdown.show { display: block; }
+        .user-card { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+        .user-meta .user-name { font-weight: 700; font-size: 14px; color: var(--text-main); }
+        .user-actions .dropdown-link { display: flex; align-items: center; gap: 8px; padding: 12px 15px; color: var(--danger); font-size: 14px; text-decoration: none; font-weight: 500; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 100px; }
+        .container { max-width: 1400px; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; text-align: center; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; text-transform: uppercase; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .data-table-container { background: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid var(--border-color); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 1200px; }
+        thead { background: var(--light-blue); border-bottom: 1px solid var(--border-color); }
+        th, td { padding: 14px 12px; font-size: 13px; color: var(--text-main); }
+        th { font-weight: 700; color: var(--primary-blue); text-transform: uppercase; font-size: 11px; }
+        tbody tr { border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #f8fafc; }
+        tbody tr.selected-row { background: var(--light-blue) !important; border-left: 4px solid var(--primary-blue); }
+        
+        .btn-delete { background: var(--danger); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2); transition: 0.2s; }
+        .btn-delete:hover { background: #b91c1c; }
+        
+        .select-asignacion { padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: white; font-size: 13px; cursor: pointer; width: 100%; min-width: 150px; }
+
+        .btn-flotante { position: fixed; bottom: 30px; right: 30px; background: var(--danger); color: white; border: none; padding: 15px 20px; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 15px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4); z-index: 900; transition: transform 0.2s; }
+        .btn-flotante:hover { transform: scale(1.05); background: #b91c1c; }
+
+        #custom-alert { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .modal-card-alert { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        #alert-icon-container { margin-bottom: 16px; display: flex; justify-content: center; }
+        #alert-title { margin: 0 0 8px 0; font-size: 18px; color: var(--text-main); font-weight: 700; }
+        #alert-msg { margin: 0 0 24px 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; text-align: left; }
+        #alert-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; color: white; background: var(--primary-blue); font-weight: 700; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Asignación de Obra</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial-header" onclick="document.getElementById('user-dropdown').classList.toggle('show')">U</div>
+            <div class="user-dropdown" id="user-dropdown">
+                <div class="user-card"><div class="user-meta"><div class="user-name" id="user-dropdown-name">Cargando...</div></div></div>
+                <div class="user-actions"><a href="index.html" class="dropdown-link" onclick="localStorage.clear();"><i data-lucide="log-out" style="width:16px;"></i> Cerrar sesión</a></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Obras Registradas</h1>
+                    <p>Selecciona una obra para editarla o asigna un residente directamente en la lista</p>
+                </div>
+
+                <div class="data-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 60px; text-align: center;">Eliminar</th>
+                                <th>Fecha de Alta</th>
+                                <th>Proyecto</th>
+                                <th>Ubicación</th>
+                                <th>Folio</th>
+                                <th>Cliente</th>
+                                <th>Fecha de Inicio</th>
+                                <th>Fecha de Término</th>
+                                <th>Asignación de Obra</th>
+                                <th>Fecha de Asignación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-obras">
+                            <tr><td colspan="10" style="padding: 30px; text-align: center; color: var(--text-muted);">Cargando obras...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <button class="btn-flotante" onclick="editarObraSeleccionada()">
+        <i data-lucide="edit"></i> Editar obra
+    </button>
+
+    <div id="custom-alert"><div class="modal-card-alert"><div id="alert-icon-container"></div><h3 id="alert-title"></h3><p id="alert-msg"></p><button id="alert-btn" onclick="closeCustomAlert()">Aceptar</button></div></div>
+
+    <script>
+        // Configuración de Firebase actualizada
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        let listaUsuarios = [];
+        let obraSeleccionadaId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const usuario = localStorage.getItem('usuario'), nombre = localStorage.getItem('nombre');
+            if (!usuario) { window.location.href = 'index.html'; return; }
+            document.getElementById('user-initial-header').innerText = (nombre || 'U').charAt(0).toUpperCase();
+            document.getElementById('user-dropdown-name').innerText = nombre || 'Usuario';
+
+            fetch('menu.html?v=2').then(res => res.text()).then(html => {
+                document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+                const linkAsignacion = document.getElementById('link-asignacion-obra'); if(linkAsignacion) linkAsignacion.classList.add('active');
+            }).catch(() => {
+                document.getElementById('sidebar').innerHTML = `<nav class="sidebar-nav"><div class="sidebar-section"><span class="section-title">Navegación</span><a href="obranueva.html" class="nav-item"><i data-lucide="hard-hat" style="width:18px;height:18px;"></i> Obra Nueva</a></div></nav>`;
+                lucide.createIcons();
+            });
+
+            document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+            window.addEventListener('click', (e) => { if (!e.target.matches('#user-initial-header')) { const dd = document.getElementById('user-dropdown'); if(dd.classList.contains('show')) dd.classList.remove('show'); } });
+            
+            cargarUsuarios().then(() => {
+                cargarObras();
+            });
+        });
+
+        function showCustomAlert(t, m, s=true) {
+            const a = document.getElementById('custom-alert');
+            document.getElementById('alert-title').innerText = t;
+            document.getElementById('alert-msg').innerText = m;
+            const i = document.getElementById('alert-icon-container'), b = document.getElementById('alert-btn');
+            if(s){ i.innerHTML='<i data-lucide="check-circle" style="width:48px;height:48px;color:var(--success)"></i>'; b.style.background='var(--success)'; }
+            else{ i.innerHTML='<i data-lucide="alert-triangle" style="width:48px;height:48px;color:var(--danger)"></i>'; b.style.background='var(--danger)'; }
+            a.style.display = 'flex'; lucide.createIcons();
+        }
+        function closeCustomAlert() { document.getElementById('custom-alert').style.display = 'none'; }
+
+        async function cargarUsuarios() {
+            try {
+                const q = await db.collection("usuarios").get();
+                listaUsuarios = [];
+                q.forEach(doc => {
+                    const data = doc.data();
+                    if(data.nombre) listaUsuarios.push(data.nombre);
+                    else if(data.usuario) listaUsuarios.push(data.usuario);
+                });
+            } catch(e) { console.log("No se pudieron cargar usuarios", e); }
+        }
+
+        function cargarObras() {
+            db.collection("obras_loreto").onSnapshot(snapshot => {
+                const tbody = document.getElementById('tabla-obras');
+                tbody.innerHTML = '';
+                
+                if(snapshot.empty) {
+                    tbody.innerHTML = `<tr><td colspan="10" style="padding: 30px; text-align: center; color: var(--text-muted);">No hay obras registradas.</td></tr>`;
+                    return;
+                }
+
+                let obras = [];
+                snapshot.forEach(doc => obras.push({ id: doc.id, data: doc.data() }));
+                obras.sort((a, b) => (b.data.fecha_creacion || "").localeCompare(a.data.fecha_creacion || ""));
+
+                obras.forEach(obraObj => {
+                    const obra = obraObj.data;
+                    const id = obraObj.id;
+                    
+                    let fechaAlta = 'N/A';
+                    if(obra.fecha_creacion) {
+                        try { fechaAlta = new Date(obra.fecha_creacion).toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' }); } catch(e){}
+                    }
+
+                    let fechaAsignacion = 'Pendiente';
+                    if(obra.fecha_asignacion) {
+                        try { fechaAsignacion = new Date(obra.fecha_asignacion).toLocaleString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch(e){}
+                    }
+
+                    const opcionesUsuarios = listaUsuarios.map(u => 
+                        `<option value="${u}" ${obra.usuario_asignado === u ? 'selected' : ''}>${u}</option>`
+                    ).join('');
+
+                    const tr = document.createElement('tr');
+                    tr.id = `row-${id}`;
+                    tr.onclick = () => seleccionarObra(id);
+                    
+                    tr.innerHTML = `
+                        <td style="text-align: center;" onclick="event.stopPropagation()">
+                            <button class="btn-delete" onclick="eliminarObra('${id}', '${obra.proyecto.replace(/'/g, "")}')">
+                                <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                            </button>
+                        </td>
+                        <td>${fechaAlta}</td>
+                        <td style="font-weight: 600;">${obra.proyecto || 'N/A'}</td>
+                        <td>${obra.ubicacion || 'N/A'}</td>
+                        <td style="font-weight: 700; color: var(--primary-blue);">${obra.folio_obra || 'N/A'}</td>
+                        <td>${obra.cliente || 'N/A'}</td>
+                        <td>${obra.fecha_inicio || 'N/A'}</td>
+                        <td>${obra.fecha_termino || 'N/A'}</td>
+                        <td onclick="event.stopPropagation()">
+                            <select class="select-asignacion" onchange="asignarUsuario('${id}', this.value)">
+                                <option value="">Sin asignar...</option>
+                                ${opcionesUsuarios}
+                            </select>
+                        </td>
+                        <td id="fecha-asig-${id}">${fechaAsignacion}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                lucide.createIcons();
+
+            }, error => {
+                console.error("Error: ", error);
+                showCustomAlert("Error", `Código: ${error.code}\nMensaje: ${error.message}`, false);
+            });
+        }
+
+        function seleccionarObra(id) {
+            obraSeleccionadaId = id;
+            document.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('selected-row'));
+            const row = document.getElementById(`row-${id}`);
+            if(row) row.classList.add('selected-row');
+        }
+
+        function editarObraSeleccionada() {
+            if(!obraSeleccionadaId) {
+                showCustomAlert("Atención", "Por favor, haz clic en la fila de la obra que deseas editar primero.", false);
+                return;
+            }
+            window.location.href = `obranueva.html?id=${obraSeleccionadaId}`;
+        }
+
+        async function asignarUsuario(id, usuario) {
+            const fecha = new Date().toISOString();
+            try {
+                await db.collection("obras_loreto").doc(id).update({
+                    usuario_asignado: usuario,
+                    fecha_asignacion: fecha
+                });
+                
+                // Actualizar la fecha en la tabla sin recargar
+                const celda = document.getElementById(`fecha-asig-${id}`);
+                celda.innerText = new Date(fecha).toLocaleString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                
+                showCustomAlert("Éxito", `Obra asignada a ${usuario} correctamente.`, true);
+            } catch(error) {
+                console.error("Error al asignar: ", error);
+                showCustomAlert("Error", `Código: ${error.code}\nMensaje: ${error.message}`, false);
+            }
+        }
+
+        async function eliminarObra(id, nombreProyecto) {
+            if(confirm(`¿Estás seguro de eliminar la obra "${nombreProyecto}"?`)) {
+                try {
+                    await db.collection("obras_loreto").doc(id).delete();
+                    showCustomAlert("Eliminado", "La obra se ha eliminado.", true);
+                } catch(error) {
+                    showCustomAlert("Error", `Mensaje: ${error.message}`, false);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
