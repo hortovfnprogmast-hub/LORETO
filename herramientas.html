@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catálogo Equipo | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* --- HEADER Y LAYOUT --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 98%; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;}
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        /* --- FILTROS Y ACCIONES --- */
+        .filters-bar { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid var(--border-color); display: flex; gap: 16px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap;}
+        .search-box { display: flex; gap: 16px; flex: 1; min-width: 300px;}
+        .filter-group { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .filter-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+        .form-input { padding: 0 16px; height: 42px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; color: var(--text-main); width: 100%; box-sizing: border-box; background: var(--bg-color); transition: all 0.2s;}
+        .form-input:focus { background: white; outline: none; border-color: var(--primary-blue); }
+        
+        .action-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-primary { background: var(--primary-blue); color: white; border: none; height: 42px; padding: 0 20px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
+        .btn-primary:hover { background: #1a2a6e; }
+        .btn-secondary { background: white; color: var(--text-main); border: 1px solid var(--border-color); height: 42px; padding: 0 20px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
+        .btn-secondary:hover { background: var(--bg-color); }
+        .btn-print { background: #1e293b; color: white; border: none; height: 42px; padding: 0 20px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; display: none;}
+        .btn-print:hover { background: #0f172a; }
+
+        /* --- TABLA --- */
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-color); background: white;}
+        .data-table { width: 100%; border-collapse: collapse; min-width: 1400px; }
+        .data-table th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 12px 10px; text-align: left; border-bottom: 2px solid var(--border-color); border-right: 1px solid var(--border-color); white-space: nowrap; }
+        .data-table th.center { text-align: center; }
+        .data-table td { padding: 10px; border-bottom: 1px solid var(--border-color); border-right: 1px solid var(--border-color); font-size: 12px; color: var(--text-main); vertical-align: middle; text-align: left; }
+        .data-table td.center { text-align: center; }
+        .data-table tbody tr:hover { background-color: #f8fafc; }
+        .data-table th:last-child, .data-table td:last-child { border-right: none; }
+
+        .qr-chk { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-blue); }
+
+        .money-text { color: #16a34a; font-weight: 700; }
+        .bold-text { font-weight: 800; color: var(--primary-blue); }
+
+        .btn-action-blue { background: var(--primary-blue); color: white; border: none; height: 30px; padding: 0 10px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s;}
+        .btn-action-red { background: var(--danger); color: white; border: none; height: 30px; padding: 0 10px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s;}
+
+        /* --- MODALES --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .modal-card { background: white; width: 100%; max-width: 600px; border-radius: 16px; display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; position: relative; animation: popIn 0.3s;}
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .modal-header-custom { padding: 20px 24px; border-bottom: 1px solid var(--border-color); background: var(--light-blue); position: sticky; top: 0; z-index: 10; }
+        .modal-header-custom h2 { font-size: 18px; font-weight: 800; margin: 0; color: var(--primary-blue); }
+        .modal-close { background: none; border: none; font-size: 26px; cursor: pointer; color: var(--text-muted); position: absolute; top: 15px; right: 20px; }
+        
+        .modal-body { padding: 24px; overflow-y: auto; background: var(--bg-color); display: flex; flex-direction: column; gap: 15px;}
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        
+        .modal-footer { padding: 16px 24px; background: #fff; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; }
+        .btn-cancelar { background: white; color: var(--text-main); border: 1px solid var(--border-color); height: 42px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 20px; display: inline-flex; align-items: center; gap: 8px;}
+        .btn-guardar { background: var(--primary-blue); color: white; border: none; height: 42px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 24px; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;}
+
+        .modal-small { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 350px; text-align: center; }
+        .modal-small p { font-size: 15px; color: var(--text-main); margin-bottom: 20px; font-weight: 600; line-height: 1.5; }
+        .btn-modal { width: 100%; padding: 12px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+
+        /* --- CONTENEDOR BOTÓN FLOTANTE --- */
+        .floating-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            z-index: 999;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 16px;
+            border-radius: 40px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+        .floating-counter {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-main);
+            background: var(--light-blue);
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1px solid #c7d2fe;
+            white-space: nowrap;
+        }
+        .btn-floating {
+            background: #1e293b;
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, background 0.2s;
+        }
+        .btn-floating:hover {
+            background: #0f172a;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Almacén</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">A</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <div>
+                        <h1>Catálogo de Herramientas y Equipo</h1>
+                        <p>Administra el catálogo de herramientas y equipos. Puedes generar etiquetas QR en lotes seleccionándolas de la lista.</p>
+                    </div>
+                </div>
+
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <div class="filter-group">
+                            <label class="filter-label">Buscar Equipo</label>
+                            <input type="text" class="form-input" id="filtro-buscar" placeholder="Buscar por clave o nombre..." onkeyup="renderTabla()">
+                        </div>
+                    </div>
+                    <div class="action-group">
+                        <button class="btn-print" id="btn-imprimir-qr" onclick="imprimirQR()">
+                            <i data-lucide="qr-code"></i> Imprimir Etiquetas QR
+                        </button>
+                        <button class="btn-secondary" id="btn-importar-csv" onclick="document.getElementById('csv-file').click()">
+                            <i data-lucide="upload"></i> Importar CSV
+                        </button>
+                        <input type="file" id="csv-file" accept=".csv" style="display: none;" onchange="procesarCSV(this)">
+                        
+                        <button class="btn-primary" onclick="abrirModalArticulo()">
+                            <i data-lucide="plus-circle"></i> Agregar
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p>Cargando base de datos de herramientas...</p>
+                </div>
+
+                <div class="table-responsive" id="tabla-container" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="center" style="width: 40px;"><i data-lucide="check-square" style="width:16px;"></i></th>
+                                <th>Fecha y Hora</th>
+                                <th>Categoría</th>
+                                <th>Clave</th>
+                                <th>Unidad</th>
+                                <th>Herramienta / Equipo</th>
+                                <th class="center">Disponibles</th>
+                                <th class="center">Valor Repos.</th>
+                                <th class="center">Valor Uso</th>
+                                <th class="center" style="background:#e0f2fe;">Valor Total</th>
+                                <th class="center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalArticulo" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header-custom">
+                <h2 id="modal-titulo">Agregar Equipo</h2>
+                <button class="modal-close" onclick="cerrarModal()">&times;</button>
+                <input type="hidden" id="modal-id">
+            </div>
+            
+            <div class="modal-body">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Categoría</label>
+                        <input type="text" class="form-input" id="inp-categoria" required placeholder="Ej: HERRAMIENTA MENOR">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Clave</label>
+                        <input type="text" class="form-input" id="inp-clave" required style="text-transform: uppercase;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Nombre del Equipo / Herramienta</label>
+                    <input type="text" class="form-input" id="inp-nombre" required placeholder="Ej: TALADRO PERCUTOR 1/2">
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Unidad de Medida</label>
+                        <input type="text" class="form-input" id="inp-unidad" required placeholder="Ej: PZA, JGO">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cantidad Disponible</label>
+                        <input type="number" step="0.01" class="form-input" id="inp-cantidad" required value="0">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Valor Reposición ($)</label>
+                        <input type="number" step="0.01" class="form-input" id="inp-costo" required value="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Valor de Uso/Renta ($)</label>
+                        <input type="number" step="0.01" class="form-input" id="inp-precio" required value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" onclick="cerrarModal()"><i data-lucide="x-circle"></i> Cancelar</button>
+                <button type="button" class="btn-guardar" onclick="guardarArticulo()"><i data-lucide="save"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-success" class="modal-overlay" style="z-index: 10000;">
+        <div class="modal-small">
+            <i data-lucide="check-circle" style="color: var(--success); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-success-msg">Operación exitosa.</p>
+            <button class="btn-modal" style="background:var(--success); color:white;" onclick="document.getElementById('modal-success').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+    <div id="modal-error" class="modal-overlay" style="z-index: 10000;">
+        <div class="modal-small">
+            <i data-lucide="alert-triangle" style="color: var(--danger); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-error-msg">Error.</p>
+            <button class="btn-modal" style="background:var(--danger); color:white;" onclick="document.getElementById('modal-error').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+
+    <div id="floating-qr-container" class="floating-container">
+        <span id="floating-qr-counter" class="floating-counter">0 seleccionados</span>
+        <button class="btn-floating" id="btn-floating-imprimir" onclick="imprimirQR()" title="Imprimir Etiquetas QR Seleccionadas">
+            <i data-lucide="qr-code"></i>
+        </button>
+    </div>
+
+<script>
+    // Configuración de Firebase actualizada
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+        authDomain: "loretoapp-2ca14.firebaseapp.com",
+        projectId: "loretoapp-2ca14",
+        storageBucket: "loretoapp-2ca14.firebasestorage.app",
+        messagingSenderId: "794212467801",
+        appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+    };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.firestore();
+
+    let dataInventario = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkInv = document.getElementById('link-herramientas'); if(linkInv) linkInv.classList.add('active');
+        });
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        cargarInventario();
+    });
+
+    function formatMoney(amount) { return parseFloat(amount).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'}); }
+    function formatDate(timestampObj) {
+        if (!timestampObj) return '-';
+        let date = timestampObj.toDate ? timestampObj.toDate() : new Date(timestampObj);
+        return date.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    function mostrarAlerta(msg) { document.getElementById('modal-error-msg').innerText = msg; document.getElementById('modal-error').style.display = 'flex'; lucide.createIcons(); }
+    function mostrarExito(msg) { document.getElementById('modal-success-msg').innerText = msg; document.getElementById('modal-success').style.display = 'flex'; lucide.createIcons(); }
+
+    // --- PROCESAMIENTO DEL ARCHIVO CSV ---
+    function procesarCSV(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const btn = document.getElementById('btn-importar-csv');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Subiendo CSV...';
+        btn.disabled = true;
+        lucide.createIcons();
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const text = e.target.result;
+            const rows = text.split('\n');
+            
+            let count = 0;
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i].trim();
+                if(!row) continue;
+                
+                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+
+                if (cols.length >= 7) {
+                    const data = {
+                        categoria: cols[0].replace(/"/g, '').trim(),
+                        clave: cols[1].replace(/"/g, '').trim(),
+                        unidad: cols[2].replace(/"/g, '').trim(),
+                        nombre: cols[3].replace(/"/g, '').trim(),
+                        cantidad: parseFloat(cols[4]) || 0,
+                        costo: parseFloat(cols[5]) || 0,
+                        precio: parseFloat(cols[6]) || 0,
+                        ultima_actualizacion: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    await db.collection("herramientas").add(data);
+                    count++;
+                }
+            }
+            
+            mostrarExito(`Se importaron exitosamente ${count} herramientas/equipos desde el Excel a la Base de Datos.`);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            lucide.createIcons();
+            input.value = ''; 
+            cargarInventario(); 
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    async function cargarInventario() {
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('tabla-container').style.display = 'none';
+        
+        try {
+            const snap = await db.collection("herramientas").orderBy("nombre").get();
+            dataInventario = [];
+            snap.forEach(doc => { dataInventario.push({ id: doc.id, ...doc.data() }); });
+            renderTabla();
+        } catch (e) { 
+            console.error("Error", e); 
+            mostrarAlerta("Error al cargar la base de datos de herramientas.");
+        }
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('tabla-container').style.display = 'block';
+    }
+
+    function renderTabla() {
+        const tbody = document.getElementById('tabla-body');
+        tbody.innerHTML = '';
+        const fBuscar = document.getElementById('filtro-buscar').value.toLowerCase();
+
+        let filtrados = dataInventario.filter(t => {
+            if(fBuscar && !(t.nombre || "").toLowerCase().includes(fBuscar) && !(t.clave || "").toLowerCase().includes(fBuscar)) return false;
+            return true;
+        });
+
+        if(filtrados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="11" style="padding: 30px; text-align:center; color: var(--text-muted);">No hay equipos que coincidan con la búsqueda.</td></tr>`;
+            return;
+        }
+
+        filtrados.forEach(row => {
+            let tr = document.createElement('tr');
+            
+            let cant = parseFloat(row.cantidad) || 0;
+            let precio = parseFloat(row.precio) || 0;
+            let importe = cant * precio;
+            let fechaHora = row.ultima_actualizacion ? formatDate(row.ultima_actualizacion) : '-';
+
+            let html = `
+                <td class="center"><input type="checkbox" class="qr-chk" value="${row.id}" onchange="validarSeleccionQR()"></td>
+                <td style="font-size: 10px; color: var(--text-muted); font-weight: 600;">${fechaHora.replace(', ', '<br>')}</td>
+                <td style="font-weight: 700; color: var(--text-muted);">${row.categoria}</td>
+                <td style="font-weight: 800; color: var(--primary-blue);">${row.clave}</td>
+                <td>${row.unidad}</td>
+                <td class="bold-text">${row.nombre}</td>
+                <td class="center" style="font-weight: 800; font-size: 14px;">${cant}</td>
+                <td class="center">${formatMoney(row.costo)}</td>
+                <td class="center money-text">${formatMoney(precio)}</td>
+                <td class="center" style="background:#e0f2fe; font-weight: 800; color: var(--primary-blue);">${formatMoney(importe)}</td>
+                <td class="center">
+                    <button class="btn-action-blue" onclick="abrirModalArticulo('${row.id}')" title="Editar"><i data-lucide="edit-3"></i></button>
+                    <button class="btn-action-red" onclick="eliminarArticulo('${row.id}')" title="Eliminar"><i data-lucide="trash-2"></i></button>
+                </td>
+            `;
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+        });
+        
+        lucide.createIcons();
+    }
+
+    // --- LÓGICA DEL MODAL CRUD ---
+    function abrirModalArticulo(id = null) {
+        document.getElementById('modal-id').value = id || '';
+        document.getElementById('modal-titulo').innerText = id ? "Editar Equipo" : "Agregar Equipo";
+        
+        if(id) {
+            const item = dataInventario.find(x => x.id === id);
+            document.getElementById('inp-categoria').value = item.categoria || '';
+            document.getElementById('inp-clave').value = item.clave || '';
+            document.getElementById('inp-nombre').value = item.nombre || '';
+            document.getElementById('inp-unidad').value = item.unidad || '';
+            document.getElementById('inp-cantidad').value = item.cantidad || 0;
+            document.getElementById('inp-costo').value = item.costo || 0;
+            document.getElementById('inp-precio').value = item.precio || 0;
+        } else {
+            document.getElementById('inp-categoria').value = '';
+            document.getElementById('inp-clave').value = '';
+            document.getElementById('inp-nombre').value = '';
+            document.getElementById('inp-unidad').value = 'PZA';
+            document.getElementById('inp-cantidad').value = 0;
+            document.getElementById('inp-costo').value = 0;
+            document.getElementById('inp-precio').value = 0;
+        }
+        
+        document.getElementById('modalArticulo').style.display = 'flex';
+        lucide.createIcons();
+    }
+
+    function cerrarModal() { document.getElementById('modalArticulo').style.display = 'none'; }
+
+    async function guardarArticulo() {
+        const id = document.getElementById('modal-id').value;
+        const nombre = document.getElementById('inp-nombre').value.toUpperCase();
+        const clave = document.getElementById('inp-clave').value.toUpperCase();
+
+        if(!nombre || !clave) { mostrarAlerta("El Nombre y la Clave son obligatorios."); return; }
+
+        const data = {
+            categoria: document.getElementById('inp-categoria').value.toUpperCase(),
+            clave: clave,
+            nombre: nombre,
+            unidad: document.getElementById('inp-unidad').value.toUpperCase(),
+            cantidad: parseFloat(document.getElementById('inp-cantidad').value) || 0,
+            costo: parseFloat(document.getElementById('inp-costo').value) || 0,
+            precio: parseFloat(document.getElementById('inp-precio').value) || 0,
+            ultima_actualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        const btn = document.querySelector('#modalArticulo .btn-guardar');
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Guardando...';
+
+        try {
+            if(id) {
+                await db.collection("herramientas").doc(id).update(data);
+                mostrarExito("Equipo actualizado correctamente.");
+            } else {
+                await db.collection("herramientas").add(data);
+                mostrarExito("Equipo agregado al catálogo.");
+            }
+            cerrarModal();
+            cargarInventario();
+        } catch (e) {
+            console.error(e);
+            mostrarAlerta("Error al guardar en la base de datos.");
+        } finally {
+            btn.disabled = false; btn.innerHTML = oldHtml;
+        }
+    }
+
+    async function eliminarArticulo(id) {
+        if(confirm("¿Estás seguro de eliminar este equipo definitivamente del catálogo?")) {
+            try {
+                await db.collection("herramientas").doc(id).delete();
+                mostrarExito("Equipo eliminado.");
+                cargarInventario();
+            } catch(e) {
+                mostrarAlerta("Error al eliminar el equipo.");
+            }
+        }
+    }
+
+    // =========================================================
+    // LÓGICA DE SINCRONIZACIÓN DE BOTONES Y CONTADOR FLOTANTE
+    // =========================================================
+    function validarSeleccionQR() {
+        const checkedCount = document.querySelectorAll('.qr-chk:checked').length;
+        const btnPrint = document.getElementById('btn-imprimir-qr');
+        const floatingContainer = document.getElementById('floating-qr-container');
+        const floatingCounter = document.getElementById('floating-qr-counter');
+
+        if(checkedCount > 0) {
+            // Mostrar botón en la barra superior de filtros
+            btnPrint.style.display = 'inline-flex';
+            
+            // Mostrar contenedor flotante y actualizar el contador al lado del botón
+            floatingContainer.style.display = 'flex';
+            floatingCounter.innerText = `${checkedCount} ${checkedCount === 1 ? 'seleccionado' : 'seleccionados'}`;
+        } else {
+            btnPrint.style.display = 'none';
+            floatingContainer.style.display = 'none';
+        }
+    }
+
+    function imprimirQR() {
+        const checked = document.querySelectorAll('.qr-chk:checked');
+        if(checked.length === 0) return;
+
+        const btn = document.getElementById('btn-imprimir-qr');
+        const btnFloating = document.getElementById('btn-floating-imprimir');
+        
+        const oldTxt = btn.innerHTML;
+        const oldFloatTxt = btnFloating.innerHTML;
+        
+        // Colocar ambos botones en estado de carga simultáneamente
+        btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Generando PDF...';
+        btnFloating.innerHTML = '<i data-lucide="loader-2" class="animate-spin" style="width:20px; height:20px;"></i>';
+        btn.disabled = true;
+        btnFloating.disabled = true;
+        lucide.createIcons();
+
+        // 1. Contenedor invisible pero posicionado en (0,0) para evitar que html2canvas recorte la imagen.
+        const hiddenContainer = document.createElement('div');
+        hiddenContainer.style.position = 'absolute';
+        hiddenContainer.style.top = '0';
+        hiddenContainer.style.left = '0';
+        hiddenContainer.style.visibility = 'hidden'; // Oculto al ojo humano, visible para el motor
+        hiddenContainer.style.zIndex = '-9999';
+        hiddenContainer.style.width = '750px'; 
+        
+        const wrap = document.createElement('div');
+        wrap.style.width = '100%'; 
+        wrap.style.backgroundColor = '#ffffff';
+
+        // 2. Extraer datos y separar en bloques de 10 (Paginación: 5 filas x 2 columnas)
+        const items = Array.from(checked).map(chk => dataInventario.find(d => d.id === chk.value)).filter(Boolean);
+        const chunkSize = 10;
+        
+        for (let i = 0; i < items.length; i += chunkSize) {
+            const chunk = items.slice(i, i + chunkSize);
+            
+            // Cada 'pageDiv' representa una hoja del PDF
+            const pageDiv = document.createElement('div');
+            pageDiv.style.padding = '0'; 
+            pageDiv.style.boxSizing = 'border-box';
+            pageDiv.style.width = '100%';
+            pageDiv.style.backgroundColor = '#ffffff';
+
+            // Cabecera del PDF
+            pageDiv.innerHTML = `
+                <div style="text-align:center; border-bottom: 2px solid #263fa4; padding-bottom: 10px; margin-bottom: 20px;">
+                    <h1 style="margin: 0; font-size: 20px; color: #263fa4; text-transform: uppercase; font-weight: 800; font-family: Arial, sans-serif;">Etiquetas de Equipo - Loreto</h1>
+                    <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">Escanear QR para identificar el equipo en el sistema.</p>
+                </div>
+                <div class="etiquetas-grid" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-content: flex-start; font-family: Arial, sans-serif;"></div>
+            `;
+
+            const grid = pageDiv.querySelector('.etiquetas-grid');
+
+            // Diseñar las etiquetas (sin precios, solo datos base y QR Permanente)
+            chunk.forEach(item => {
+                const label = document.createElement('div');
+                label.style.width = 'calc(50% - 7.5px)'; 
+                label.style.border = '2px dashed #94a3b8';
+                label.style.borderRadius = '12px';
+                label.style.padding = '12px';
+                label.style.boxSizing = 'border-box';
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.justifyContent = 'space-between';
+                label.style.marginBottom = '10px';
+                label.style.height = '140px'; 
+                label.style.backgroundColor = '#ffffff';
+                
+                const info = document.createElement('div');
+                info.style.width = '65%';
+                info.style.fontSize = '12px';
+                info.style.lineHeight = '1.4';
+                info.style.color = '#1e293b';
+                info.style.overflow = 'hidden';
+                
+                info.innerHTML = `
+                    <div style="font-size:13px; font-weight:900; color:#263fa4; margin-bottom:6px; line-height:1.2; max-height:30px; overflow:hidden;">${item.nombre}</div>
+                    <div><strong>Clave:</strong> <span style="font-weight:800;">${item.clave}</span></div>
+                    <div><strong>Cat:</strong> ${item.categoria}</div>
+                    <div><strong>Unidad:</strong> ${item.unidad}</div>
+                `;
+                
+                const qrBox = document.createElement('div');
+                qrBox.style.width = '90px';
+                qrBox.style.height = '90px';
+                qrBox.style.display = 'flex';
+                qrBox.style.justifyContent = 'center';
+                qrBox.style.alignItems = 'center';
+                
+                label.appendChild(info);
+                label.appendChild(qrBox);
+                grid.appendChild(label);
+                
+                // GENERAR QR CONSTANTE usando el ID único de Firebase
+                new QRCode(qrBox, {
+                    text: item.id, 
+                    width: 90,
+                    height: 90,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.M
+                });
+            });
+
+            wrap.appendChild(pageDiv);
+
+            // Si hay más elementos en la lista, insertamos la bandera de salto de página
+            if (i + chunkSize < items.length) {
+                const pageBreak = document.createElement('div');
+                pageBreak.classList.add('html2pdf__page-break');
+                wrap.appendChild(pageBreak);
+            }
+        }
+
+        hiddenContainer.appendChild(wrap);
+        document.body.appendChild(hiddenContainer);
+
+        // 3. Configuración para HTML2PDF garantizando formato y saltos exactos
+        const opt = {
+            margin:       10, // 10mm de margen en los bordes de la hoja Carta
+            filename:     `Etiquetas_QR_Equipo.pdf`,
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { scale: 2, useCORS: true, letterRendering: true }, 
+            jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }, 
+            pagebreak:    { mode: 'css', before: '.html2pdf__page-break' }
+        };
+
+        // Esperamos un momento para que QRCode termine de dibujar los canvas
+        setTimeout(() => {
+            html2pdf().set(opt).from(wrap).save().then(() => {
+                btn.innerHTML = oldTxt;
+                btnFloating.innerHTML = oldFloatTxt;
+                btn.disabled = false;
+                btnFloating.disabled = false;
+                lucide.createIcons();
+                document.body.removeChild(hiddenContainer); // Limpieza
+                
+                // Desmarcar todos los checkboxes al finalizar
+                document.querySelectorAll('.qr-chk').forEach(c => c.checked = false);
+                
+                // Forzar la validación para limpiar y ocultar los botones automáticamente
+                validarSeleccionQR();
+                
+                mostrarExito("PDF de Etiquetas generado y descargado correctamente.");
+            }).catch(err => {
+                console.error(err);
+                mostrarAlerta("Ocurrió un error al generar el PDF.");
+                btn.innerHTML = oldTxt;
+                btnFloating.innerHTML = oldFloatTxt;
+                btn.disabled = false;
+                btnFloating.disabled = false;
+                lucide.createIcons();
+                document.body.removeChild(hiddenContainer);
+            });
+        }, 800); 
+    }
+</script>
+</body>
+</html>
