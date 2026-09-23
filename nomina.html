@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mi Nómina | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* --- HEADER Y LAYOUT --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 900px; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        /* --- DASHBOARD CARDS --- */
+        .main-salary-card { background: linear-gradient(135deg, var(--primary-blue) 0%, #1a2a6e 100%); color: white; border-radius: 16px; padding: 30px; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(38,63,164,0.2); display: flex; justify-content: space-between; align-items: center;}
+        .main-salary-card h2 { margin: 0 0 5px 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #cbd5e1; }
+        .main-salary-card .amount { margin: 0; font-size: 42px; font-weight: 900; }
+        .main-salary-card i { width: 64px; height: 64px; color: rgba(255,255,255,0.2); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+        
+        .info-card { background: white; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.03); overflow: hidden; }
+        .info-card-header { background: var(--light-blue); padding: 15px 20px; border-bottom: 1px solid var(--border-color); font-weight: 800; color: var(--primary-blue); display: flex; align-items: center; gap: 8px; font-size: 16px;}
+        .info-card-body { padding: 20px; display: flex; flex-direction: column; gap: 15px;}
+        
+        .data-row { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px dashed var(--border-color); }
+        .data-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .data-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .data-value { font-size: 18px; font-weight: 800; color: var(--text-main); }
+        .data-value.highlight { color: var(--success); }
+
+        /* --- LEYENDAS INFORMATIVAS --- */
+        .leyenda-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 15px 20px; margin-bottom: 15px; display: flex; gap: 15px; align-items: flex-start; }
+        .leyenda-box.night { background: #f8fafc; border-color: #cbd5e1; }
+        .leyenda-icon { color: #166534; margin-top: 2px; }
+        .leyenda-box.night .leyenda-icon { color: var(--text-muted); }
+        .leyenda-text h4 { margin: 0 0 5px 0; font-size: 14px; font-weight: 800; color: var(--text-main); }
+        .leyenda-text p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+        
+        /* Contenedor de operaciones dinámicas */
+        .operacion-math { display: block; background: rgba(255,255,255,0.7); border: 1px dashed #94a3b8; padding: 8px 12px; border-radius: 6px; margin: 8px 0; font-family: monospace; font-size: 14px; color: var(--primary-blue); font-weight: 700; }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Mi Nómina</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Detalle de Salario</h1>
+                    <p>Consulta tu información salarial actualizada y la forma en la que se calculan tus ingresos por turno.</p>
+                </div>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p>Cargando información...</p>
+                </div>
+
+                <div id="dashboard-nomina" style="display: none;">
+                    
+                    <div class="main-salary-card">
+                        <div>
+                            <h2>Salario Semanal Neto</h2>
+                            <p class="amount" id="lbl-salario-semanal">$0.00</p>
+                            <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;" id="lbl-fecha">Última actualización: -</p>
+                        </div>
+                        <i data-lucide="banknote"></i>
+                    </div>
+
+                    <div class="info-card" style="margin-bottom: 20px;">
+                        <div class="info-card-body" style="flex-direction: row; justify-content: space-between; align-items: center; padding: 15px 20px; background-color: #f8fafc;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i data-lucide="calendar-check" style="color: var(--primary-blue); width: 24px;"></i>
+                                <span class="data-label" style="font-size: 14px;">Salario Base Diario</span>
+                            </div>
+                            <span class="data-value highlight" style="font-size: 24px;" id="lbl-salario-base">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="info-card">
+                            <div class="info-card-header">
+                                <i data-lucide="sun" style="width: 20px;"></i> Turno Diurno
+                            </div>
+                            <div class="info-card-body">
+                                <div class="data-row" style="border:none;">
+                                    <span class="data-label">Costo por Hora (Diurno)</span>
+                                    <span class="data-value highlight" id="lbl-hora-diurno">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-card">
+                            <div class="info-card-header" style="background: #f1f5f9; color: #475569; border-color: #cbd5e1;">
+                                <i data-lucide="moon" style="width: 20px;"></i> Turno Nocturno
+                            </div>
+                            <div class="info-card-body">
+                                <div class="data-row" style="border:none;">
+                                    <span class="data-label">Costo por Hora (Nocturno)</span>
+                                    <span class="data-value highlight" id="lbl-hora-nocturno">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="font-size: 16px; font-weight: 800; color: var(--primary-blue); margin: 30px 0 15px 0;">¿Cómo se calculan estos rubros?</h3>
+                    
+                    <div class="leyenda-box">
+                        <i data-lucide="info" class="leyenda-icon"></i>
+                        <div class="leyenda-text" style="width:100%;">
+                            <h4>Cálculo de Salario Base y Costo por Hora (Diurno)</h4>
+                            <p id="desc-diurno">Calculando operaciones matemáticas...</p>
+                        </div>
+                    </div>
+
+                    <div class="leyenda-box night">
+                        <i data-lucide="info" class="leyenda-icon"></i>
+                        <div class="leyenda-text" style="width:100%;">
+                            <h4>Cálculo de Costo por Hora (Nocturno)</h4>
+                            <p id="desc-nocturno">Calculando operaciones matemáticas...</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script>
+    // Configuración de Firebase actualizada
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+        authDomain: "loretoapp-2ca14.firebaseapp.com",
+        projectId: "loretoapp-2ca14",
+        storageBucket: "loretoapp-2ca14.firebasestorage.app",
+        messagingSenderId: "794212467801",
+        appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+    };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.firestore();
+
+    const idUsuario = localStorage.getItem('usuario') || 'SinID';
+    const nombreUsuario = localStorage.getItem('nombre') || 'Usuario';
+    document.getElementById('user-initial').innerText = nombreUsuario.charAt(0).toUpperCase();
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkNomina = document.getElementById('link-nomina'); if(linkNomina) linkNomina.classList.add('active');
+        });
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        cargarMiNomina();
+    });
+
+    function formatMoney(amount) {
+        return parseFloat(amount).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'});
+    }
+
+    function formatDate(timestampObj) {
+        if (!timestampObj) return '-';
+        let date = timestampObj.toDate ? timestampObj.toDate() : new Date(timestampObj);
+        return date.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    async function cargarMiNomina() {
+        try {
+            const doc = await db.collection("nominas").doc(idUsuario).get();
+            
+            let salSemanal = 0;
+            let fechaTexto = 'Sin registro';
+
+            if(doc.exists) {
+                const data = doc.data();
+                salSemanal = parseFloat(data.salario_semanal) || 0;
+                fechaTexto = data.ultima_actualizacion ? formatDate(data.ultima_actualizacion) : 'Recién creado';
+            }
+
+            // --- LÓGICA MATEMÁTICA ---
+            let salBaseDiario = salSemanal / 6;
+            let horaDiurno = salBaseDiario / 8;
+            
+            let baseNocturnoTemp = salSemanal / 5;
+            let horaNocturno = baseNocturnoTemp / 8;
+
+            // --- PINTAR LOS VALORES ---
+            document.getElementById('lbl-salario-semanal').innerText = formatMoney(salSemanal);
+            document.getElementById('lbl-fecha').innerText = 'Última actualización: ' + fechaTexto;
+            
+            // Salario Base General (arriba de turnos)
+            document.getElementById('lbl-salario-base').innerText = formatMoney(salBaseDiario);
+            
+            // Costo por hora en las tarjetas
+            document.getElementById('lbl-hora-diurno').innerText = formatMoney(horaDiurno);
+            document.getElementById('lbl-hora-nocturno').innerText = formatMoney(horaNocturno);
+
+            // --- PINTAR OPERACIONES EXPLÍCITAS EN LEYENDAS ---
+            document.getElementById('desc-diurno').innerHTML = `
+                El <strong>Salario Base Diario</strong> es la división de tu Salario Semanal entre <strong>6 días laborables</strong>:
+                <span class="operacion-math">${formatMoney(salSemanal)} ÷ 6 días = ${formatMoney(salBaseDiario)}</span>
+                
+                Para obtener el <strong>Costo por Hora (Diurno)</strong>, se divide ese salario diario entre una jornada normal de <strong>8 horas</strong>:
+                <span class="operacion-math">${formatMoney(salBaseDiario)} ÷ 8 horas = ${formatMoney(horaDiurno)}</span>
+            `;
+
+            document.getElementById('desc-nocturno').innerHTML = `
+                Para obtener el <strong>Costo por Hora (Nocturno)</strong>, primero se divide tu Salario Semanal entre <strong>5 días laborables</strong> (debido a la compresión de jornada nocturna), y ese resultado se divide entre <strong>8 horas</strong>:
+                <span class="operacion-math">Paso 1: ${formatMoney(salSemanal)} ÷ 5 días = ${formatMoney(baseNocturnoTemp)}</span>
+                <span class="operacion-math">Paso 2: ${formatMoney(baseNocturnoTemp)} ÷ 8 horas = ${formatMoney(horaNocturno)}</span>
+            `;
+
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('dashboard-nomina').style.display = 'block';
+            lucide.createIcons();
+
+        } catch(e) {
+            console.error(e);
+            alert("Error al cargar la información salarial.");
+        }
+    }
+</script>
+</body>
+</html>
