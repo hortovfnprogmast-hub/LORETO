@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Comprobantes de Pago | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; border-bottom: none; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 98%; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 30px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .data-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid var(--border-color); }
+        
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-color); }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 1400px; }
+        .data-table th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 12px; font-weight: 800; text-transform: uppercase; padding: 14px 12px; text-align: center; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+        .data-table td { padding: 12px 15px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid var(--border-color); text-align: center; font-weight: 500; vertical-align: middle; }
+        .data-table tbody tr:hover { background-color: #f8fafc; }
+
+        .table-photo { width: 45px; height: 45px; border-radius: 8px; object-fit: cover; cursor: zoom-in; border: 1px solid var(--border-color); margin: 0 auto; display: block;}
+        .table-photo-empty { width: 45px; height: 45px; border-radius: 8px; background: var(--bg-color); display: flex; align-items: center; justify-content: center; color: #cbd5e1; border: 1px dashed #cbd5e1; margin: 0 auto;}
+
+        .btn-cargar { background-color: var(--primary-blue); color: white; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer; transition: 0.2s; width: 100%; max-width: 120px; white-space: nowrap; }
+        .btn-cargar:hover { background-color: #1a2a6e; }
+        .btn-cargar.success { background-color: var(--success); }
+
+        .btn-ver-historial { background-color: var(--danger); color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; width: 100%; max-width: 160px; box-sizing: border-box; margin: 0 auto; white-space: nowrap; border: none; cursor: pointer; }
+        .btn-ver-historial:hover { background-color: #b91c1c; }
+
+        .cell-empty { color: var(--text-muted); font-size: 11px; font-style: italic; }
+        .cell-date { font-family: monospace; font-size: 12px; color: var(--text-main); font-weight: 600; white-space: pre-line; line-height: 1.4;}
+
+        /* Modales */
+        #image-viewer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center; cursor: zoom-out; }
+        #image-viewer-img { max-width: 90%; max-height: 90%; border-radius: 8px; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 380px; text-align: center; animation: popIn 0.3s; }
+        .modal-content p { font-size: 15px; color: var(--text-main); margin-bottom: 20px; font-weight: 600; line-height: 1.5; }
+        .btn-modal { width: 100%; padding: 12px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; }
+        .btn-modal:hover { opacity: 0.9; }
+
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Dispersión de Nómina</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">C</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Comprobantes de Pago</h1>
+                    <p>Carga los PDFs con los comprobantes de transferencia o recibos de nómina de los trabajadores.</p>
+                </div>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p id="loader-text">Cargando lista de trabajadores...</p>
+                </div>
+
+                <div class="data-card" id="tabla-container" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 3%;">#</th>
+                                    <th style="width: 5%;">Foto</th>
+                                    <th style="width: 17%;">Nombre del Trabajador</th>
+                                    <th style="width: 12%;">Cargo</th>
+                                    <th style="width: 15%;">Cuenta CLABE</th>
+                                    <th style="width: 9%;">Comp. de pago 1</th>
+                                    <th style="width: 9%;">Fecha / Hora</th>
+                                    <th style="width: 9%;">Comp. de pago 2</th>
+                                    <th style="width: 9%;">Fecha / Hora</th>
+                                    <th style="width: 12%;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-expedientes"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <input type="file" id="pdfUploader" accept="application/pdf" style="display: none;" onchange="handlePDFUpload(event)">
+    <div id="image-viewer-overlay" onclick="closeImageViewer()"><img id="image-viewer-img" src="" alt="Vista previa"></div>
+
+    <div id="modal-tipo-carga" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="help-circle" style="color: var(--primary-blue); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p>Este trabajador ya tiene un archivo aquí. ¿Qué deseas hacer?</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-modal" style="background:var(--success); color:white;" onclick="seleccionarArchivo('replace')">Reemplazar archivo actual (corregir error)</button>
+                <button class="btn-modal" style="background:var(--primary-blue); color:white;" onclick="seleccionarArchivo('new')">Crear NUEVO registro (nuevo periodo)</button>
+                <button class="btn-modal" style="background:var(--bg-color); color:var(--text-main);" onclick="document.getElementById('modal-tipo-carga').style.display='none'">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-success" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="check-circle" style="color: var(--success); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-success-text">Comprobante subido exitosamente.</p>
+            <button class="btn-modal" style="background:var(--success); color:white;" onclick="document.getElementById('modal-success').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+
+    <div id="modal-error" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="alert-triangle" style="color: var(--danger); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-error-text">Hubo un error.</p>
+            <button class="btn-modal" style="background:var(--danger); color:white;" onclick="document.getElementById('modal-error').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Firebase actualizada
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8", 
+            authDomain: "loretoapp-2ca14.firebaseapp.com", 
+            projectId: "loretoapp-2ca14", 
+            storageBucket: "loretoapp-2ca14.firebasestorage.app", 
+            messagingSenderId: "794212467801", 
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48" 
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore(); const storage = firebase.storage();
+
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkCompAdmin = document.getElementById('link-comprobantes-admin'); if(linkCompAdmin) linkCompAdmin.classList.add('active');
+        });
+
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        function openImageViewer(src) { document.getElementById('image-viewer-img').src = src; document.getElementById('image-viewer-overlay').style.display = 'flex'; }
+        function closeImageViewer() { document.getElementById('image-viewer-overlay').style.display = 'none'; document.getElementById('image-viewer-img').src = ''; }
+        function mostrarAlerta(mensaje) { document.getElementById('modal-error-text').innerText = mensaje; document.getElementById('modal-error').style.display = 'flex'; lucide.createIcons(); }
+        function mostrarExito(mensaje) { document.getElementById('modal-success-text').innerText = mensaje; document.getElementById('modal-success').style.display = 'flex'; lucide.createIcons(); }
+
+        function formatearFecha(timestampObj) {
+            if (!timestampObj) return '<span class="cell-empty">Sin comprobante</span>';
+            let date = timestampObj.toDate ? timestampObj.toDate() : new Date(timestampObj);
+            return date.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(', ', '\n');
+        }
+
+        let currentUploadUserId = null; let currentCompNum = null; let actionType = 'replace';
+
+        function triggerCargarPDF(userId, compNum, isUpdate) {
+            currentUploadUserId = userId;
+            currentCompNum = compNum;
+            if(isUpdate) {
+                document.getElementById('modal-tipo-carga').style.display = 'flex';
+                lucide.createIcons();
+            } else {
+                seleccionarArchivo('replace');
+            }
+        }
+
+        function seleccionarArchivo(type) {
+            actionType = type;
+            document.getElementById('modal-tipo-carga').style.display = 'none';
+            document.getElementById('pdfUploader').click();
+        }
+
+        async function handlePDFUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.type !== "application/pdf") { mostrarAlerta("Formato inválido. Selecciona archivos PDF."); event.target.value = ''; return; }
+
+            document.getElementById('loader-text').innerText = `Subiendo comprobante de pago ${currentCompNum}...`;
+            document.getElementById('loader').style.display = 'flex'; document.getElementById('tabla-container').style.display = 'none';
+
+            try {
+                const docRef = db.collection("expedientes_personal").doc(currentUploadUserId);
+                const docSnap = await docRef.get();
+                const currentData = docSnap.exists ? docSnap.data() : {};
+
+                const ref = storage.ref(`comprobantes_pago/${currentUploadUserId}/comprobante_${currentCompNum}_${Date.now()}.pdf`);
+                await ref.put(file);
+                const url = await ref.getDownloadURL();
+
+                if (actionType === 'new') {
+                    // MODIFICACIÓN AQUÍ: No podemos usar serverTimestamp() dentro de un arrayUnion.
+                    // Usamos la fecha del cliente para el historial y serverTimestamp() para el nuevo registro principal.
+                    const now = new Date(); // Fecha y hora de la computadora actual
+                    
+                    const historyItem = {
+                        comp_pago_1_url: currentData.comp_pago_1_url || null,
+                        comp_pago_1_ts: currentData.comp_pago_1_ts || null,
+                        comp_pago_2_url: currentData.comp_pago_2_url || null,
+                        comp_pago_2_ts: currentData.comp_pago_2_ts || null,
+                        archivado_ts: now // Usamos fecha de cliente para el historial
+                    };
+
+                    const updateData = {
+                        historial_pagos: firebase.firestore.FieldValue.arrayUnion(historyItem),
+                        // El nuevo registro principal SI usa hora del servidor
+                        comp_pago_1_url: currentCompNum === 1 ? url : null,
+                        comp_pago_1_ts: currentCompNum === 1 ? firebase.firestore.FieldValue.serverTimestamp() : null,
+                        comp_pago_2_url: currentCompNum === 2 ? url : null,
+                        comp_pago_2_ts: currentCompNum === 2 ? firebase.firestore.FieldValue.serverTimestamp() : null,
+                    };
+                    await docRef.set(updateData, { merge: true });
+                } else {
+                    // Reemplazo normal (usa serverTimestamp sin problemas)
+                    const updateData = {};
+                    updateData[`comp_pago_${currentCompNum}_url`] = url;
+                    updateData[`comp_pago_${currentCompNum}_ts`] = firebase.firestore.FieldValue.serverTimestamp();
+                    await docRef.set(updateData, { merge: true });
+                }
+                
+                mostrarExito("El comprobante se ha subido y guardado exitosamente.");
+                cargarExpedientes();
+            } catch (error) {
+                console.error("Error al subir el PDF:", error);
+                // Si el error persiste, limpia el input para permitir reintentar
+                event.target.value = '';
+                mostrarAlerta("Hubo un error al intentar subir el archivo.");
+                document.getElementById('loader').style.display = 'none'; document.getElementById('tabla-container').style.display = 'block';
+            }
+            event.target.value = '';
+        }
+
+        async function cargarExpedientes() {
+            document.getElementById('loader-text').innerText = 'Cargando lista de trabajadores...';
+            document.getElementById('loader').style.display = 'flex'; document.getElementById('tabla-container').style.display = 'none';
+
+            try {
+                const snapshot = await db.collection("expedientes_personal").get();
+                let listaTrabajadores = [];
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const nombreCompleto = `${data.nombre || ''} ${data.paterno || ''} ${data.materno || ''}`.trim().toUpperCase();
+                    listaTrabajadores.push({
+                        id: doc.id, nombre: nombreCompleto || 'SIN NOMBRE REGISTRADO', cargo: data.cargo_credencial || '-', clabe: data.cuenta_clabe || '-',
+                        fotoUrl: (data.urls_fotos && data.urls_fotos.selfie) ? data.urls_fotos.selfie : null,
+                        comp1_url: data.comp_pago_1_url || null, comp1_ts: data.comp_pago_1_ts || null,
+                        comp2_url: data.comp_pago_2_url || null, comp2_ts: data.comp_pago_2_ts || null
+                    });
+                });
+
+                listaTrabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+                let html = ''; let contador = 1;
+                listaTrabajadores.forEach(trabajador => {
+                    const fotoHtml = trabajador.fotoUrl ? `<img src="${trabajador.fotoUrl}" class="table-photo" onclick="openImageViewer(this.src)">` : `<div class="table-photo-empty"><i data-lucide="user"></i></div>`;
+                    
+                    const isUpdate1 = !!trabajador.comp1_url;
+                    const btn1Class = isUpdate1 ? "btn-cargar success" : "btn-cargar";
+                    const btn1Text = isUpdate1 ? "Actualizar" : "Cargar";
+                    
+                    const isUpdate2 = !!trabajador.comp2_url;
+                    const btn2Class = isUpdate2 ? "btn-cargar success" : "btn-cargar";
+                    const btn2Text = isUpdate2 ? "Actualizar" : "Cargar";
+
+                    html += `
+                        <tr>
+                            <td style="text-align: center; font-weight: 700; color: var(--text-muted);">${contador}</td>
+                            <td style="text-align: center;">${fotoHtml}</td>
+                            <td style="font-weight: 700; color: var(--primary-blue); text-align: left;">${trabajador.nombre}</td>
+                            <td style="text-align: left;">${trabajador.cargo}</td>
+                            <td style="font-family: monospace; font-size: 14px; text-align: left;">${trabajador.clabe}</td>
+                            <td style="text-align: center;"><button class="${btn1Class}" onclick="triggerCargarPDF('${trabajador.id}', 1, ${isUpdate1})"><i data-lucide="upload-cloud"></i> ${btn1Text}</button></td>
+                            <td style="text-align: center;" class="cell-date">${formatearFecha(trabajador.comp1_ts)}</td>
+                            <td style="text-align: center;"><button class="${btn2Class}" onclick="triggerCargarPDF('${trabajador.id}', 2, ${isUpdate2})"><i data-lucide="upload-cloud"></i> ${btn2Text}</button></td>
+                            <td style="text-align: center;" class="cell-date">${formatearFecha(trabajador.comp2_ts)}</td>
+                            <td style="text-align: center;"><a href="comprobante_pago.html?viewUid=${trabajador.id}" class="btn-ver-historial"><i data-lucide="history"></i> Ver Historial</a></td>
+                        </tr>
+                    `;
+                    contador++;
+                });
+
+                document.getElementById('tbody-expedientes').innerHTML = html;
+                document.getElementById('loader').style.display = 'none'; document.getElementById('tabla-container').style.display = 'block';
+                lucide.createIcons();
+            } catch (error) { console.error("Error al cargar:", error); mostrarAlerta("Error al descargar lista."); }
+        }
+        document.addEventListener('DOMContentLoaded', cargarExpedientes);
+    </script>
+</body>
+</html>
