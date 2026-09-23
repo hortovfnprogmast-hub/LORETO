@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PDF Reporte Semanal - Loreto Ingeniería</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root { --loreto-blue: #263fa4; --loreto-light: #eef2ff; --tm-text: #1e293b; --tm-border: #cbd5e1; }
+        body { font-family: 'Inter', Arial, Helvetica, sans-serif; margin: 0; padding: 20px; background-color: #555; color: var(--tm-text); font-size: 11px; line-height: 1.2; display: flex; flex-direction: column; align-items: center; }
+        
+        .btn-descargar { position: fixed; top: 15px; right: 15px; background-color: var(--loreto-blue); color: white; border: none; padding: 10px 18px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; }
+        .btn-descargar:hover { background-color: #1a2a6e; }
+        .btn-descargar:disabled { background-color: #94a3b8; cursor: not-allowed; }
+        
+        .btn-regresar { position: fixed; top: 15px; left: 15px; background-color: #64748b; color: white; border: none; padding: 10px 18px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; }
+        .btn-regresar:hover { background-color: #475569; }
+
+        @media (max-width: 767px) {
+            body:not(.pdf-generating) { padding: 60px 0 0 0; } 
+            body:not(.pdf-generating) #contenido-pdf { transform: scale(0.48); transform-origin: top center; margin-top: 10px; width: 210mm; } 
+            body:not(.pdf-generating) .page { box-shadow: none; margin: 0 0 10px 0; padding: 8mm 15mm; border: none; height: auto; } 
+        }
+
+        .page { width: 210mm; height: 297mm; background: white; margin: 0 auto 20px auto; padding: 6mm 15mm; box-sizing: border-box; box-shadow: 0 0 10px rgba(0,0,0,0.5); position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        .content-wrapper { flex-grow: 1; display: flex; flex-direction: column; }
+
+        .header-container { display: grid; grid-template-columns: 55% 45%; margin-bottom: 5px; align-items: center; }
+        .title-row { display: flex; align-items: center; font-size: 15px; font-weight: 800; margin-bottom: 10px; color: var(--loreto-blue); }
+        .blue-square { width: 18px; height: 18px; background-color: var(--loreto-blue); margin-right: 10px; border-radius: 3px; }
+        
+        ul.info-list { list-style: none; padding: 0; margin: 0; }
+        ul.info-list li { display: flex; align-items: center; margin-bottom: 3px; font-size: 11px; color: #333; font-weight: 500 !important; } 
+        .custom-bullet { display: inline-flex; justify-content: center; align-items: center; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--loreto-blue); margin-right: 8px; flex-shrink: 0; }
+        .custom-bullet::after { content: ''; width: 4px; height: 4px; background-color: var(--loreto-blue); border-radius: 50%; }
+
+        .header-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; }
+        .logo-img { width: 180px; margin-bottom: 5px; }
+
+        .blue-divider { height: 5px; background-color: var(--loreto-blue); width: 100%; margin: 6px 0; border-radius: 2px; }
+
+        .main-titles-container { text-align: center; position: relative; margin-bottom: 5px; padding-bottom: 5px; }
+        .title-blue-centered { color: var(--loreto-blue); font-size: 16px; font-weight: 800; margin-bottom: 2px; text-transform: uppercase; }
+        .ticket-left { position: absolute; bottom: 0; left: 0; text-align: left; font-size: 11px; font-weight: 700; } 
+        .ticket-right { position: absolute; bottom: 0; right: 0; text-align: right; font-size: 11px; font-weight: 700; } 
+
+        .area-line { display: flex; align-items: center; margin-bottom: 4px; font-size: 11px; font-weight: 600 !important; } 
+
+        .blue-bar-full { background-color: var(--loreto-blue); color: white; display: flex; align-items: center; padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 2px; } 
+        .blue-bar-full .left-col { width: 40%; display: flex; align-items: center;}
+        .blue-bar-full .center-col { width: 20%; text-align: center; display: flex; justify-content: center; align-items: center; }
+        .bullet-white { display: inline-flex; justify-content: center; align-items: center; width: 8px; height: 8px; border-radius: 50%; border: 1px solid white; margin-right: 8px; flex-shrink: 0; }
+        .bullet-white::after { content: ''; width: 3px; height: 3px; background-color: white; border-radius: 50%; }
+
+        .photo-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; margin-bottom: 4px; }
+        .photo-box { border: 1px solid var(--tm-border); height: 135px; background-color: var(--loreto-light); display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        .text-input-box { border: 1px solid var(--tm-border); padding: 4px 8px; min-height: 50px; margin-top: 2px; margin-bottom: 6px; background-color: white; font-weight: 500; border-radius: 2px; } 
+
+        .eval-container { display: flex; gap: 8px; margin-top: 4px; margin-bottom: 4px; align-items: stretch; height: 160px; }
+        .eval-left-box { width: 33%; border: 1px solid var(--tm-border); background-color: var(--loreto-light); display: flex; align-items: center; justify-content: center; overflow: hidden; color: #94a3b8; font-size: 10px; box-sizing: border-box; border-radius: 4px; }
+        .eval-left-box img { width: 100%; height: 100%; object-fit: cover; }
+        .eval-right-grid { width: 67%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; gap: 6px; height: 100%; }
+        .eval-card { border: 1px solid var(--tm-border); display: flex; flex-direction: column; overflow: hidden; border-radius: 4px; }
+        .empleado-card { grid-column: span 2; }
+        .eval-card-header { background-color: var(--loreto-blue); color: white; padding: 3px 8px; font-size: 10px; display: flex; align-items: center; font-weight: 700; }
+        .eval-card-body { padding: 4px 8px; flex-grow: 1; background-color: white; font-weight: 500; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; } 
+        .eval-card-body .area-line { margin-bottom: 2px; font-size: 10px; font-weight: 600 !important; } 
+        #pdf-firma { padding: 2px; align-items: center; justify-content: center; width: 100%; height: 100%; box-sizing: border-box; }
+        #pdf-firma img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        .footer-divider { border-top: 1px solid #e2e8f0; margin-bottom: 4px; width: 100%; }
+        .blue-footer { background-color: var(--loreto-blue); color: white; text-align: center; padding: 5px 10px; font-size: 8px; width: 100%; box-sizing: border-box; white-space: nowrap; font-weight: 600; letter-spacing: 0.5px; }
+
+        @media print {
+            body { background-color: white; padding: 0; margin: 0; }
+            #contenido-pdf { transform: none; width: 210mm; margin: 0; }
+            .page { box-shadow: none; margin: 0; padding: 10mm 15mm; border: none; height: 297mm; overflow: hidden; }
+            .btn-descargar, .btn-regresar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="btn-regresar" id="btn-regresar" onclick="window.close()">Cerrar PDF</button>
+    <button class="btn-descargar" id="btn-descargar" onclick="generarPDF()">Descargar PDF</button>
+
+    <div id="contenido-pdf">
+        <div class="page">
+            <div class="content-wrapper">
+                <div class="header-container">
+                    <div>
+                        <div class="title-row">
+                            <div class="blue-square"></div>
+                            <div id="pdf-proyecto" style="font-weight: bold;">-- PROYECTO --</div>
+                        </div>
+                        <ul class="info-list">
+                            <li><i class="custom-bullet"></i> Ubicación: <span id="pdf-ubicacion-header" style="margin-left: 5px;"></span></li>
+                            <li><i class="custom-bullet"></i> Residente: <span id="pdf-residente-header" style="margin-left: 5px;"></span></li>
+                        </ul>
+                    </div>
+                    <div class="header-right">
+                        <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Loreto Logo" class="logo-img" crossorigin="anonymous">
+                    </div>
+                </div>
+
+                <div class="blue-divider"></div>
+
+                <div class="main-titles-container">
+                    <div class="title-blue-centered">REPORTE SEMANAL</div>
+                    <div class="title-blue-centered">LORETO - INGENIERÍA CONSTRUCCIÓN EDIFICACIÓN</div>
+                    <div class="ticket-left">FOLIO: <span id="pdf-folio"></span></div>
+                    <div class="ticket-right">FECHA: <span id="pdf-fecha"></span></div>
+                </div>
+
+                <div class="blue-divider" style="margin-bottom: 6px;"></div>
+
+                <!-- SECCIÓN ANTES -->
+                <div class="blue-bar-full">
+                    <div class="left-col"><span class="bullet-white"></span> EVIDENCIA FOTOGRÁFICA</div>
+                    <div class="center-col">ANTES</div>
+                </div>
+                <div class="photo-grid-3">
+                    <div class="photo-box" id="pdf-antes-0"></div>
+                    <div class="photo-box" id="pdf-antes-1"></div>
+                    <div class="photo-box" id="pdf-antes-2"></div>
+                </div>
+
+                <!-- SECCIÓN AVANCE -->
+                <div class="blue-bar-full">
+                    <div class="left-col"><span class="bullet-white"></span> EVIDENCIA FOTOGRÁFICA</div>
+                    <div class="center-col">AVANCE</div>
+                </div>
+                <div class="photo-grid-3">
+                    <div class="photo-box" id="pdf-avance-0"></div>
+                    <div class="photo-box" id="pdf-avance-1"></div>
+                    <div class="photo-box" id="pdf-avance-2"></div>
+                </div>
+                <div class="blue-bar-full" style="width: calc(33.33% - 7px);"><span class="bullet-white"></span> DESCRIPCIÓN DEL AVANCE</div>
+                <div class="text-input-box" id="pdf-desc-avance"></div>
+
+                <!-- SECCIÓN OBSERVACIONES -->
+                <div class="blue-bar-full">
+                    <div class="left-col"><span class="bullet-white"></span> EVIDENCIA FOTOGRÁFICA</div>
+                    <div class="center-col">MATERIALES</div>
+                </div>
+                <div class="photo-grid-3">
+                    <div class="photo-box" id="pdf-obs-0"></div>
+                    <div class="photo-box" id="pdf-obs-1"></div>
+                    <div class="photo-box" id="pdf-obs-2"></div>
+                </div>
+                <div class="blue-bar-full" style="width: calc(33.33% - 7px);"><span class="bullet-white"></span> OBSERVACIONES / MATERIALES</div>
+                <div class="text-input-box" id="pdf-desc-obs"></div>
+
+                <div class="blue-bar-full"><span class="bullet-white"></span> RESIDENTE EN SITIO</div>
+                
+                <div class="eval-container">
+                    <div class="eval-left-box" id="pdf-selfie"></div>
+                    <div class="eval-right-grid">
+                        <div class="eval-card empleado-card">
+                            <div class="eval-card-header"><span class="bullet-white"></span> DATOS DEL RESIDENTE</div>
+                            <div class="eval-card-body">
+                                <div class="area-line"><i class="custom-bullet"></i> NOMBRE: <span id="pdf-nom-res" style="margin-left: 5px;"></span></div>
+                                <div class="area-line"><i class="custom-bullet"></i> CELULAR: <span id="pdf-cel-res" style="margin-left: 5px;"></span></div>
+                            </div>
+                        </div>
+                        <div class="eval-card">
+                            <div class="eval-card-header"><span class="bullet-white"></span> COMENTARIO DE SALIDA</div>
+                            <div class="eval-card-body" id="pdf-comentario" style="font-size: 10px;"></div>
+                        </div>
+                        <div class="eval-card">
+                            <div class="eval-card-header"><span class="bullet-white"></span> FIRMA</div>
+                            <div class="eval-card-body" id="pdf-firma"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-divider"></div>
+            <div class="blue-footer">
+                LORETO INGENIERÍA &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REPORTES SEMANALES &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TODOS LOS DERECHOS RESERVADOS &copy; 2024
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function esperarImagenes() {
+            return new Promise((resolve) => {
+                const imagenes = document.querySelectorAll('#contenido-pdf img');
+                let cargadas = 0;
+                const total = imagenes.length;
+                if (total === 0) { resolve(); return; }
+                imagenes.forEach((img) => {
+                    if (img.complete && img.naturalHeight !== 0) {
+                        cargadas++;
+                        if (cargadas === total) resolve();
+                    } else {
+                        img.onload = () => { cargadas++; if (cargadas === total) resolve(); };
+                        img.onerror = () => { cargadas++; if (cargadas === total) resolve(); };
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const dataStr = sessionStorage.getItem('DatosReportePDF');
+            if (dataStr) {
+                const data = JSON.parse(dataStr);
+                
+                // Encabezado superior
+                document.getElementById('pdf-proyecto').innerText = data.proyecto || '';
+                document.getElementById('pdf-ubicacion-header').innerText = data.ubicacion || '';
+                document.getElementById('pdf-residente-header').innerText = data.residente_nombre || '';
+                
+                // Datos inferiores y descripciones
+                document.getElementById('pdf-folio').innerText = data.folio || '';
+                document.getElementById('pdf-fecha').innerText = data.fecha || '';
+                document.getElementById('pdf-desc-avance').innerText = data.desc_avance || '';
+                document.getElementById('pdf-desc-obs').innerText = data.desc_observaciones || '';
+                document.getElementById('pdf-nom-res').innerText = data.residente_nombre || '';
+                document.getElementById('pdf-cel-res').innerText = data.residente_celular || '';
+                document.getElementById('pdf-comentario').innerText = data.comentario || '';
+
+                // Inyectar imágenes (llegan como base64)
+                if (data.fotos_antes) {
+                    data.fotos_antes.forEach((foto, index) => {
+                        if (foto) document.getElementById(`pdf-antes-${index}`).innerHTML = '<img src="' + foto + '">';
+                    });
+                }
+                if(data.fotos_avance) {
+                    data.fotos_avance.forEach((foto, index) => {
+                        if (foto) document.getElementById(`pdf-avance-${index}`).innerHTML = '<img src="' + foto + '">';
+                    });
+                }
+                if(data.fotos_observaciones) {
+                    data.fotos_observaciones.forEach((foto, index) => {
+                        if (foto) document.getElementById(`pdf-obs-${index}`).innerHTML = '<img src="' + foto + '">';
+                    });
+                }
+                if (data.firma) document.getElementById('pdf-firma').innerHTML = '<img src="' + data.firma + '">';
+                if (data.selfie) document.getElementById('pdf-selfie').innerHTML = '<img src="' + data.selfie + '">';
+
+            } else {
+                alert("No se encontraron datos del reporte.");
+            }
+        });
+
+        async function generarPDF() {
+            document.body.classList.add('pdf-generating');
+            const btn = document.getElementById('btn-descargar');
+            const btnR = document.getElementById('btn-regresar');
+            
+            btn.innerText = 'Cargando fotos...';
+            btn.disabled = true;
+            btnR.style.display = 'none';
+            window.scrollTo(0, 0);
+
+            await esperarImagenes();
+
+            btn.innerText = 'Generando PDF...';
+
+            const elemento = document.getElementById('contenido-pdf');
+            const pages = document.querySelectorAll('.page');
+            const originalStyles = [];
+            
+            pages.forEach((p) => {
+                originalStyles.push({ margin: p.style.margin, boxShadow: p.style.boxShadow, height: p.style.height });
+                p.style.margin = '0';
+                p.style.boxShadow = 'none';
+                p.style.height = '296.5mm'; 
+            });
+
+            const proyectoRaw = document.getElementById('pdf-proyecto').innerText || 'SIN_PROYECTO';
+            const proyectoLimpio = proyectoRaw.replace(/[\s\/:,]/g, '_');
+            
+            const opciones = {
+                margin: 0,
+                filename: 'REPORTE_SEMANAL_' + proyectoLimpio + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opciones).from(elemento).save().then(() => {
+                btn.style.display = 'block';
+                btnR.style.display = 'block';
+                btn.innerText = 'Descargar PDF';
+                btn.disabled = false;
+                pages.forEach((p, index) => {
+                    p.style.margin = originalStyles[index].margin;
+                    p.style.boxShadow = originalStyles[index].boxShadow;
+                    p.style.height = originalStyles[index].height;
+                });
+                document.body.classList.remove('pdf-generating');
+            });
+        }
+    </script>
+</body>
+</html>
