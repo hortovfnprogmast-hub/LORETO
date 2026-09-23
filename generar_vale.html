@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Generar Vale | Loreto</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 98%; margin: 0 auto; padding-bottom: 50px; }
+
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;}
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+        
+        .card { background: white; border-radius: 12px; padding: 24px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+
+        .search-container { position: relative; margin-bottom: 20px; }
+        .search-grid { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
+        
+        .input-group { display: flex; flex-direction: column; gap: 4px; position: relative; }
+        .input-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        
+        input[type="text"], input[type="number"] {
+            padding: 0 16px; height: 42px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; color: var(--text-main); width: 100%; box-sizing: border-box; background: var(--bg-color); text-transform: uppercase; transition: all 0.2s;
+        }
+        input:focus { background: white; outline: none; border-color: var(--primary-blue); }
+        input:read-only { color: var(--text-muted); background: #f1f5f9; }
+
+        #input-clave, #input-articulo, #input-precio {
+            color: var(--primary-blue) !important;
+            font-weight: 400 !important;
+        }
+        #input-clave::placeholder, #input-articulo::placeholder, #input-precio::placeholder {
+            color: var(--primary-blue) !important;
+            font-weight: 400 !important;
+            opacity: 1; 
+        }
+        
+        #input-stock {
+            color: var(--danger) !important;
+            font-weight: 400 !important;
+        }
+        #input-stock::placeholder {
+            color: var(--danger) !important;
+            font-weight: 400 !important;
+            opacity: 1;
+        }
+
+        .dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 10; display: none; list-style: none; padding: 0; margin: 4px 0 0 0; }
+        .dropdown-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; font-size: 13px;}
+        .dropdown-item:hover { background-color: var(--bg-color); }
+
+        .button-group { display: flex; gap: 8px; }
+        .btn-accion { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 24px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; box-sizing: border-box;}
+        .btn-primary { background-color: var(--primary-blue); color: white; }
+        .btn-primary:hover { background-color: #1a2a6e; }
+        .btn-secondary { background-color: white; color: var(--text-main); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background-color: var(--bg-color); }
+        .btn-qr { background-color: #1e293b; color: white; }
+        .btn-qr:hover { background-color: #0f172a; }
+        .btn-pdf { background-color: var(--success); color: white; width: 100%; font-size: 15px; padding: 14px; margin-top: 20px; }
+        .btn-pdf:hover { background-color: #059669; }
+        .btn-pdf:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        .btn-danger { background-color: var(--danger); color: white; padding: 6px 10px; height: auto; border-radius: 6px;}
+
+        .row2-wrapper {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            align-items: end;
+        }
+        .inputs-row2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        @media (min-width: 769px) {
+            #btn-buscar, #btn-toggle-qr, #btn-agregar {
+                width: 170px !important;
+                min-width: 170px !important;
+                max-width: 170px !important;
+            }
+            .row2-wrapper {
+                grid-template-columns: 1fr 170px;
+                gap: 8px;
+            }
+            .inputs-row2 {
+                grid-template-columns: 1fr 2.5fr 1fr 1fr 1fr; 
+            }
+        }
+
+        #qr-reader-container { margin-top: 15px; display: none; border: 2px dashed var(--border-color); border-radius: 8px; padding: 10px; text-align: center; background: #fafafa; }
+        #qr-reader { width: 100%; max-width: 500px; margin: 0 auto; }
+
+        .ticket-container { border: 1px solid var(--border-color); border-radius: 12px; overflow-x: auto; background: white; }
+        .ticket-header-info { display: flex; flex-direction: row; justify-content: space-between; padding: 12px 20px; background-color: var(--light-blue); border-bottom: 1px solid var(--border-color); font-weight: bold; color: var(--primary-blue); font-size: 14px;}
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 12px 20px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 13px; }
+        th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 11px; text-transform: uppercase; font-weight: 800;}
+        .text-right { text-align: right; }
+        .ticket-totals { padding: 16px 20px; background-color: #f8fafc; display: flex; justify-content: flex-end; gap: 24px; font-size: 16px; font-weight: bold; border-top: 2px solid var(--border-color);}
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-small { background: white; border-radius: 16px; padding: 30px; width: 90%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transform: translateY(-20px); transition: all 0.3s; }
+        .modal-overlay.active .modal-small { transform: translateY(0); }
+        .modal-small p { font-size: 15px; color: var(--text-main); margin-bottom: 25px; line-height: 1.5; font-weight: 600; }
+        .modal-btn { border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; transition: background 0.2s; }
+
+        @media (max-width: 768px) {
+            .search-grid { grid-template-columns: 1fr; }
+            .button-group { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+            .trabajador-obra-row { flex-direction: column !important; }
+        }
+        #conexion-loader { font-size: 12px; color: var(--success); font-weight: bold; display: flex; align-items: center; gap: 5px; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Generar Vale</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">A</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                
+                <div class="page-header">
+                    <div>
+                        <h1>Generar Vale de Equipo</h1>
+                        <p>Busca herramientas por código/nombre o usa la cámara para escanear el QR.</p>
+                    </div>
+                    <div id="conexion-loader"><i data-lucide="loader-2" class="animate-spin"></i> Conectando a Firebase...</div>
+                </div>
+
+                <div class="card">
+                    <!-- ====== FILA: TRABAJADOR (IZQ) + OBRA (DER) ====== -->
+                    <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px dashed var(--border-color); display: flex; gap: 20px;" class="trabajador-obra-row">
+                        <div class="input-group" style="flex: 1;">
+                            <label>Nombre del Trabajador que genera el vale</label>
+                            <input type="text" id="input-trabajador" readonly style="background-color: #f1f5f9; color: var(--primary-blue); font-weight: 400; border: 1px solid var(--border-color);">
+                        </div>
+                        <div class="input-group" style="flex: 1;">
+                            <label>Obra</label>
+                            <input type="text" id="input-obra" placeholder="NOMBRE DE LA OBRA..." style="background-color: #f1f5f9; color: var(--primary-blue); font-weight: 400; border: 1px solid var(--border-color);">
+                        </div>
+                    </div>
+
+                    <div class="search-container">
+                        <div class="search-grid">
+                            <div class="input-group">
+                                <label>Buscar Equipo (Nombre o Clave)</label>
+                                <input type="text" id="input-busqueda" placeholder="EJ. TALADRO O CLAVE..." autocomplete="off">
+                                <ul id="lista-desplegable" class="dropdown-list"></ul>
+                            </div>
+                            <div class="button-group">
+                                <button class="btn-accion btn-secondary" onclick="buscarArticuloManual()" id="btn-buscar">
+                                    <i data-lucide="search"></i> Buscar
+                                </button>
+                                <button class="btn-accion btn-qr" onclick="toggleScanner()" id="btn-toggle-qr">
+                                    <i data-lucide="qr-code"></i> Escanear QR
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="qr-reader-container">
+                            <p style="color: var(--text-muted); margin-bottom: 10px; font-size: 14px;">Apunta la cámara al código QR del equipo</p>
+                            <div id="qr-reader"></div>
+                            <button class="btn-accion btn-danger" style="margin-top: 10px;" onclick="cerrarScanner()">Cancelar Escaneo</button>
+                        </div>
+                    </div>
+
+                    <div class="row2-wrapper">
+                        <div class="inputs-row2">
+                            <div class="input-group">
+                                <label>Clave</label>
+                                <input type="text" id="input-clave" readonly placeholder="---">
+                            </div>
+                            <div class="input-group">
+                                <label>Equipo Seleccionado</label>
+                                <input type="text" id="input-articulo" readonly placeholder="SELECCIONA UN EQUIPO">
+                            </div>
+                            <div class="input-group">
+                                <label>Valor U. ($)</label>
+                                <input type="text" id="input-precio" readonly placeholder="0.00">
+                            </div>
+                            <div class="input-group">
+                                <label>Stock Disp.</label>
+                                <input type="text" id="input-stock" readonly placeholder="0">
+                            </div>
+                            <div class="input-group">
+                                <label>Cant. Extraer</label>
+                                <input type="number" id="input-cantidad" min="1" placeholder="Ej: 1">
+                            </div>
+                        </div>
+                        <button class="btn-accion btn-primary" onclick="agregarArticulo()" id="btn-agregar">
+                            <i data-lucide="plus-circle"></i> Agregar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ticket-container">
+                    <div class="ticket-header-info">
+                        <div id="ticket-numero">VALE-Cargando...</div>
+                        <div id="ticket-fecha">Fecha: --/--/----</div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Clave</th>
+                                <th>Concepto</th>
+                                <th class="text-right">Cant.</th>
+                                <th class="text-right">Valor U.</th>
+                                <th class="text-right">Valor Total</th>
+                                <th style="width: 60px;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-ticket"></tbody>
+                    </table>
+                    <div class="ticket-totals">
+                        <div>Equipos: <span id="total-articulos">0</span>/20</div>
+                        <div style="color: var(--primary-blue);">Total: $<span id="total-importe">0.00</span></div>
+                    </div>
+                </div>
+
+                <button class="btn-accion btn-pdf" id="btn-generar-pdf" onclick="generarPDFyDescontar()">
+                    <i data-lucide="file-down"></i> Generar PDF y Descontar Equipo
+                </button>
+
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-alerta" class="modal-overlay">
+        <div class="modal-small">
+            <i data-lucide="info" id="modal-icon" style="color: var(--primary-blue); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-mensaje">Mensaje de alerta aquí.</p>
+            <button class="modal-btn" style="background:var(--primary-blue); color:white;" onclick="cerrarAlerta()">Aceptar</button>
+        </div>
+    </div>
+
+    <div id="contenedor-pdf-oculto" style="display: none; position: absolute; top: -9999px; left: -9999px;">
+        <div id="plantilla-loreto-pdf" style="width: 210mm; background: white; padding: 15mm; font-family: 'Inter', Arial, sans-serif; box-sizing: border-box; color: #1e293b;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #263fa4; padding-bottom: 15px; margin-bottom: 25px;">
+                <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" style="height: 50px;" crossorigin="anonymous">
+                <div style="text-align: center; color: #263fa4;">
+                    <h2 style="margin: 0; font-size: 20px; font-weight: 800;">LORETO - VALE DE PRÉSTAMO DE EQUIPO</h2>
+                    <p style="margin: 5px 0 0 0; font-size: 11px; font-weight: bold;">INGENIERIA, CONSTRUCCION, EDIFICACION Y REMODELACION</p>
+                </div>
+                <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" style="height: 50px;" crossorigin="anonymous">
+            </div>
+            
+            <!-- INFO VALE + OBRA EN PDF -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; background: #eef2ff; padding: 10px; border-radius: 8px;">
+                <div><strong>Número de Vale:</strong> <span id="pdf-ticket-num" style="color: #263fa4;"></span></div>
+                <div><strong>Obra:</strong> <span id="pdf-ticket-obra" style="color: #263fa4;"></span></div>
+                <div><strong>Fecha:</strong> <span id="pdf-ticket-fecha"></span></div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px;">
+                <thead>
+                    <tr style="background-color: #263fa4; color: white;">
+                        <th style="padding: 10px; text-align: left;">#</th>
+                        <th style="padding: 10px; text-align: left;">CLAVE</th>
+                        <th style="padding: 10px; text-align: left;">CONCEPTO</th>
+                        <th style="padding: 10px; text-align: right;">CANT.</th>
+                        <th style="padding: 10px; text-align: right;">VALOR U.</th>
+                        <th style="padding: 10px; text-align: right;">VALOR TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-ticket-body">
+                    </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 30px; font-size: 16px; font-weight: bold; border-top: 2px solid #e2e8f0; padding-top: 15px;">
+                <div style="font-size: 14px; color: #64748b;">Equipos: <span id="pdf-ticket-arts">0</span></div>
+                <div style="color: #263fa4;">Total: $<span id="pdf-ticket-total">0.00</span></div>
+            </div>
+
+            <div style="margin-top: 40px; text-align: center; font-size: 14px; color: #1e293b;">
+                <p style="margin: 0 0 40px 0; font-weight: bold;">Trabajador que genera:</p>
+                <div style="width: 250px; border-bottom: 1px solid #1e293b; margin: 0 auto;"></div>
+                <p style="margin: 5px 0 0 0; text-transform: uppercase; font-weight: bold;" id="pdf-ticket-trabajador"></p>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Configuración de Firebase actualizada
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+        authDomain: "loretoapp-2ca14.firebaseapp.com",
+        projectId: "loretoapp-2ca14",
+        storageBucket: "loretoapp-2ca14.firebasestorage.app",
+        messagingSenderId: "794212467801",
+        appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+    };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.firestore();
+
+    let baseDatosAlmacen = [];
+    let ticketActual = [];
+    const LIMITE_ARTICULOS = 20;
+    let html5QrcodeScanner = null;
+    let articuloTemporal = null;
+
+    document.querySelectorAll('input[type="text"]').forEach(input => {
+        input.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; 
+            lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkGen = document.getElementById('link-generar-vale'); if(linkGen) linkGen.classList.add('active');
+        }).catch(err => console.log("Menu externo no cargado localmente (normal si no hay servidor)."));
+        
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        establecerNumeroTicket();
+        document.getElementById('ticket-fecha').innerText = `Fecha: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}`;
+        
+        const trabajadorLogueado = localStorage.getItem('usuarioActivo') || localStorage.getItem('nombreTrabajador') || 'JOVANI MARTINEZ';
+        document.getElementById('input-trabajador').value = trabajadorLogueado;
+        document.getElementById('user-initial').innerText = trabajadorLogueado.charAt(0);
+
+        cargarInventarioDeFirebase();
+
+        const inputBusqueda = document.getElementById('input-busqueda');
+        inputBusqueda.addEventListener('input', manejarBusquedaDesplegable);
+        
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.input-group')) {
+                document.getElementById('lista-desplegable').style.display = 'none';
+            }
+        });
+        
+        lucide.createIcons();
+    });
+
+    async function establecerNumeroTicket() {
+        document.getElementById('ticket-numero').innerText = `VALE-Cargando...`;
+        try {
+            const doc = await db.collection("sistema").doc("contador_vales").get();
+            let ultimoNumero = 0;
+            if (doc.exists) { ultimoNumero = doc.data().ultimo || 0; }
+            window.numeroTicketActual = ultimoNumero + 1;
+            document.getElementById('ticket-numero').innerText = `VALE-${window.numeroTicketActual}`;
+        } catch(e) {
+            console.error("Error al obtener consecutivo", e);
+            window.numeroTicketActual = 1;
+            document.getElementById('ticket-numero').innerText = `VALE-1`;
+        }
+    }
+
+    async function cargarInventarioDeFirebase() {
+        const loader = document.getElementById('conexion-loader');
+        try {
+            const snap = await db.collection("herramientas").get();
+            baseDatosAlmacen = [];
+            snap.forEach(doc => { baseDatosAlmacen.push({ id: doc.id, ...doc.data() }); });
+            loader.innerHTML = `<i data-lucide="check-circle" style="color:var(--success);"></i> BD sincronizada`;
+            lucide.createIcons();
+            setTimeout(() => loader.style.display = 'none', 3000);
+        } catch(e) {
+            console.error(e);
+            loader.innerHTML = `<i data-lucide="alert-triangle" style="color:var(--danger);"></i> Error BD`;
+            lucide.createIcons();
+            mostrarAlerta("No se pudo conectar con Firebase. Revisa tu internet.", "error");
+        }
+    }
+
+    function manejarBusquedaDesplegable(e) {
+        const texto = e.target.value.toUpperCase();
+        const lista = document.getElementById('lista-desplegable');
+        lista.innerHTML = '';
+        if (texto.length < 2) { lista.style.display = 'none'; return; }
+        const resultados = baseDatosAlmacen.filter(item => 
+            (item.nombre && item.nombre.includes(texto)) || 
+            (item.clave && item.clave.includes(texto))
+        );
+        if (resultados.length > 0) {
+            resultados.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'dropdown-item';
+                li.innerHTML = `<span><strong>${item.clave}</strong> - ${item.nombre}</span> <span style="color:var(--text-muted); font-size:12px;">Disponible: ${item.cantidad || 0}</span>`;
+                li.onclick = () => seleccionarArticulo(item);
+                lista.appendChild(li);
+            });
+            lista.style.display = 'block';
+        } else {
+            lista.style.display = 'none';
+        }
+    }
+
+    function buscarArticuloManual() {
+        const texto = document.getElementById('input-busqueda').value.toUpperCase();
+        if(!texto) return;
+        const encontrado = baseDatosAlmacen.find(item => 
+            (item.nombre && item.nombre.includes(texto)) || 
+            (item.clave && item.clave.includes(texto))
+        );
+        if (encontrado) { seleccionarArticulo(encontrado); }
+        else { mostrarAlerta("No se encontró el equipo en Firebase.", "error"); }
+    }
+
+    function seleccionarArticulo(item) {
+        articuloTemporal = item;
+        document.getElementById('input-busqueda').value = ''; 
+        document.getElementById('lista-desplegable').style.display = 'none'; 
+        document.getElementById('input-clave').value = item.clave;
+        document.getElementById('input-articulo').value = item.nombre;
+        document.getElementById('input-precio').value = (item.precio || 0).toFixed(2);
+        document.getElementById('input-stock').value = item.cantidad || 0; 
+        document.getElementById('input-cantidad').value = '';
+        document.getElementById('input-cantidad').focus();
+    }
+
+    function toggleScanner() {
+        const contenedor = document.getElementById('qr-reader-container');
+        if (contenedor.style.display === 'none' || contenedor.style.display === '') {
+            contenedor.style.display = 'block';
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+            .catch(err => { mostrarAlerta("Error al acceder a la cámara.", "error"); cerrarScanner(); });
+        }
+    }
+
+    function cerrarScanner() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                document.getElementById('qr-reader-container').style.display = 'none';
+            }).catch(err => console.log("Error", err));
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        cerrarScanner();
+        const textoEscaneado = decodedText.trim(); 
+        const encontrado = baseDatosAlmacen.find(item => 
+            item.id === textoEscaneado || 
+            (item.clave && item.clave.toUpperCase() === textoEscaneado.toUpperCase())
+        );
+        if (encontrado) { seleccionarArticulo(encontrado); mostrarAlerta(`Equipo escaneado: ${encontrado.nombre}`); }
+        else { mostrarAlerta(`Código leído: ${textoEscaneado}, no existe en Firebase.`, "error"); }
+    }
+
+    function agregarArticulo() {
+        if (!articuloTemporal) { mostrarAlerta("Primero selecciona un equipo."); return; }
+        if (ticketActual.length >= LIMITE_ARTICULOS) { mostrarAlerta(`Límite de ${LIMITE_ARTICULOS} equipos.`); return; }
+        const inputCantidadStr = document.getElementById('input-cantidad').value;
+        if (!inputCantidadStr || inputCantidadStr.trim() === '') { mostrarAlerta("Ingresa la cantidad a extraer."); return; }
+        const cantidadRequerida = parseFloat(inputCantidadStr);
+        const stockActual = parseFloat(articuloTemporal.cantidad) || 0;
+        if (isNaN(cantidadRequerida) || cantidadRequerida <= 0) { mostrarAlerta("Cantidad no válida."); return; }
+        if (cantidadRequerida > stockActual) { mostrarAlerta(`¡Stock insuficiente!\nDisponible: ${stockActual} ${articuloTemporal.unidad || 'piezas'}.`); return; }
+
+        const nuevoItem = {
+            idFirebase: articuloTemporal.id,
+            idFila: Date.now(),
+            clave: articuloTemporal.clave,
+            concepto: articuloTemporal.nombre,
+            cantidad: cantidadRequerida,
+            precio: articuloTemporal.precio || 0,
+            importe: cantidadRequerida * (articuloTemporal.precio || 0)
+        };
+        ticketActual.push(nuevoItem);
+        actualizarTabla();
+        articuloTemporal = null;
+        document.getElementById('input-clave').value = '';
+        document.getElementById('input-articulo').value = '';
+        document.getElementById('input-precio').value = '';
+        document.getElementById('input-stock').value = '';
+        document.getElementById('input-cantidad').value = '';
+    }
+
+    function eliminarArticulo(idFila) {
+        ticketActual = ticketActual.filter(item => item.idFila !== idFila);
+        actualizarTabla();
+    }
+
+    function actualizarTabla() {
+        const tbody = document.getElementById('tabla-ticket');
+        tbody.innerHTML = '';
+        let totalImporte = 0;
+        ticketActual.forEach((item, index) => {
+            totalImporte += item.importe;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${index + 1}</strong></td>
+                <td>${item.clave}</td>
+                <td>${item.concepto}</td>
+                <td class="text-right">${item.cantidad}</td>
+                <td class="text-right">$${item.precio.toFixed(2)}</td>
+                <td class="text-right" style="font-weight:700;">$${item.importe.toFixed(2)}</td>
+                <td>
+                    <button class="btn-accion btn-danger" onclick="eliminarArticulo(${item.idFila})">
+                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        document.getElementById('total-articulos').innerText = ticketActual.length;
+        document.getElementById('total-importe').innerText = totalImporte.toFixed(2);
+        
+        document.getElementById('btn-generar-pdf').disabled = ticketActual.length === 0;
+        lucide.createIcons();
+    }
+
+    function mostrarAlerta(mensaje, tipo = 'info') {
+        const icono = document.getElementById('modal-icon');
+        if(tipo === 'error') { icono.setAttribute('data-lucide', 'alert-triangle'); icono.style.color = 'var(--danger)'; }
+        else { icono.setAttribute('data-lucide', 'info'); icono.style.color = 'var(--primary-blue)'; }
+        lucide.createIcons();
+        document.getElementById('modal-mensaje').innerText = mensaje;
+        document.getElementById('modal-alerta').classList.add('active');
+    }
+
+    function cerrarAlerta() { document.getElementById('modal-alerta').classList.remove('active'); }
+
+    async function generarPDFyDescontar() {
+        const nombreTrabajador = document.getElementById('input-trabajador').value.trim().toUpperCase();
+        const nombreObra = document.getElementById('input-obra').value.trim().toUpperCase();
+        if (ticketActual.length === 0) { mostrarAlerta("El vale está vacío."); return; }
+        if (!nombreObra) { mostrarAlerta("Por favor ingresa el nombre de la Obra.", "error"); return; }
+
+        var btnGenerar = document.getElementById('btn-generar-pdf');
+        btnGenerar.disabled = true;
+        btnGenerar.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Procesando...';
+        lucide.createIcons();
+
+        try {
+            var batch = db.batch();
+            var counterRef = db.collection("sistema").doc("contador_vales");
+            batch.set(counterRef, { ultimo: window.numeroTicketActual }, { merge: true });
+            
+            var ticketDoc = `VALE-${window.numeroTicketActual}`;
+            var nuevoTicketRef = db.collection("vales").doc(ticketDoc);
+            
+            let totalImporteGuardar = 0;
+            ticketActual.forEach(i => totalImporteGuardar += i.importe);
+
+            batch.set(nuevoTicketRef, {
+                numero: ticketDoc,
+                fecha_creacion: firebase.firestore.FieldValue.serverTimestamp(),
+                fecha_str: document.getElementById('ticket-fecha').innerText.replace('Fecha: ', ''),
+                trabajador: nombreTrabajador,
+                obra: nombreObra,
+                total_articulos: ticketActual.length,
+                total_importe: totalImporteGuardar,
+                detalle: ticketActual
+            });
+
+            ticketActual.forEach(function(item) {
+                var docRef = db.collection("herramientas").doc(item.idFirebase);
+                batch.update(docRef, {
+                    cantidad: firebase.firestore.FieldValue.increment(-item.cantidad),
+                    ultima_actualizacion: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            });
+            await batch.commit();
+            await cargarInventarioDeFirebase(); 
+        } catch(error) {
+            console.error(error);
+            mostrarAlerta("Error al sincronizar con Firebase. Operación cancelada.", "error");
+            btnGenerar.disabled = false;
+            btnGenerar.innerHTML = '<i data-lucide="file-down"></i> Generar PDF y Descontar Equipo';
+            lucide.createIcons();
+            return;
+        }
+
+        document.getElementById('pdf-ticket-num').innerText = document.getElementById('ticket-numero').innerText;
+        document.getElementById('pdf-ticket-fecha').innerText = document.getElementById('ticket-fecha').innerText;
+        document.getElementById('pdf-ticket-obra').innerText = nombreObra;
+        document.getElementById('pdf-ticket-arts').innerText = ticketActual.length;
+        document.getElementById('pdf-ticket-trabajador').innerText = nombreTrabajador;
+        
+        const tbody = document.getElementById('pdf-ticket-body');
+        tbody.innerHTML = '';
+        let totalImporte = 0;
+        
+        ticketActual.forEach((item, index) => {
+            totalImporte += item.importe;
+            const bg = index % 2 === 0 ? 'background-color: #f8fafc;' : 'background-color: white;';
+            
+            tbody.innerHTML += `
+                <tr style="${bg} border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px;">${index + 1}</td>
+                    <td style="padding: 10px;">${item.clave || 'S/C'}</td>
+                    <td style="padding: 10px;">${item.concepto}</td>
+                    <td style="padding: 10px; text-align: right;">${item.cantidad}</td>
+                    <td style="padding: 10px; text-align: right;">$${item.precio.toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: right; font-weight: bold;">$${item.importe.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        
+        document.getElementById('pdf-ticket-total').innerText = totalImporte.toFixed(2);
+
+        const contenedorOculto = document.getElementById('contenedor-pdf-oculto');
+        contenedorOculto.style.display = 'block'; 
+        const elemento = document.getElementById('plantilla-loreto-pdf');
+        const numTicket = document.getElementById('ticket-numero').innerText;
+
+        const opciones = {
+            margin:       0,
+            filename:     `${numTicket}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opciones).from(elemento).save().then(() => {
+            contenedorOculto.style.display = 'none';
+            establecerNumeroTicket();
+            ticketActual = [];
+            actualizarTabla();
+            document.getElementById('input-obra').value = '';
+            mostrarAlerta('¡Vale generado y sincronizado con Firebase exitosamente!');
+            
+            btnGenerar.disabled = false;
+            btnGenerar.innerHTML = '<i data-lucide="file-down"></i> Generar PDF y Descontar Equipo';
+            lucide.createIcons();
+        }).catch(err => {
+            console.error("Error al generar PDF: ", err);
+            contenedorOculto.style.display = 'none';
+            mostrarAlerta("Hubo un error gráfico al compilar el PDF.", "error");
+            
+            btnGenerar.disabled = false;
+            btnGenerar.innerHTML = '<i data-lucide="file-down"></i> Generar PDF y Descontar Equipo';
+            lucide.createIcons();
+        });
+    }
+</script>
+</body>
+</html>
