@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Credencial | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4;
+            --light-blue: #eef2ff;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success-text: #166534;
+            --danger: #dc2626;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* --- HEADER Y LAYOUT --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; }
+            .sidebar.open { transform: translateX(0); }
+            .header-title { display: none; }
+        }
+
+        /* --- ESTILOS DEL MENÚ DINÁMICO --- */
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        
+        .sidebar .section-title { 
+            font-size: 11px; font-weight: 800; color: var(--text-muted); 
+            text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 15px;
+            padding-bottom: 0; border-bottom: none; display: block;
+        }
+
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        /* --- CONTENIDO PRINCIPAL --- */
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .form-container { max-width: 900px; margin: 0 auto; padding-bottom: 100px; }
+        
+        .page-header { margin-bottom: 30px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+
+        /* ==========================================
+           DISEÑO EXACTO DE LA CREDENCIAL
+           ========================================== */
+        .credencial-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .credencial-card {
+            width: 7cm;
+            height: 10cm;
+            background: white;
+            border: 1px solid #d1d5db;
+            box-sizing: border-box;
+            position: relative;
+            font-family: Arial, sans-serif;
+            color: black;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* --- FRONTAL --- */
+        .cred-banner { width: 100%; height: auto; display: block; }
+        
+        .cred-name { 
+            font-size: 13px; 
+            text-align: center; 
+            text-transform: uppercase; 
+            margin-top: 12px; 
+            padding: 0 10px; 
+            font-weight: bold; 
+        }
+        
+        .cred-nss { 
+            font-size: 14px; 
+            text-align: center; 
+            margin-top: 5px; 
+            margin-bottom: 10px; 
+            font-weight: bold;
+        }
+        
+        .cred-photo { 
+            width: 140px; 
+            height: 150px; 
+            margin: 0 auto; 
+            background: #f1f5f9; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .cred-photo img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        
+        .cred-cargo { 
+            text-align: center; 
+            font-size: 14px; 
+            margin-top: 10px; 
+            font-weight: bold;
+        }
+        
+        .cred-firma { 
+            height: 40px; 
+            width: 80%; 
+            object-fit: contain; 
+            margin: 5px auto 0 auto; 
+            display: none; 
+        }
+        
+        .cred-line { 
+            width: 80%; 
+            border: 0; 
+            border-top: 1px solid black; 
+            margin: 5px auto; 
+        }
+        
+        .cred-valid { 
+            text-align: center; 
+            font-size: 11px; 
+            margin-bottom: 10px; 
+            line-height: 1.3;
+        }
+
+        /* --- POSTERIOR --- */
+        
+        .cred-trucks-wrapper {
+            width: 100%;
+            height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .cred-trucks { 
+            max-height: 100%; 
+            max-width: 90%; 
+            object-fit: contain; 
+        }
+        
+        .cred-qr-container { 
+            border: 2px solid #ef4444; 
+            border-radius: 12px; 
+            padding: 5px; 
+            width: 140px; 
+            height: 140px; 
+            margin: 5px auto; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            position: relative;
+        }
+        
+        .cred-qr-container::before, .cred-qr-container::after {
+            content: ''; position: absolute; width: 10px; height: 10px; background: #ef4444; border-radius: 2px;
+        }
+        .cred-qr-container::before { top: 10px; left: 10px; }
+        .cred-qr-container::after { top: 10px; right: 10px; }
+        
+        .cred-qr-container img { width: 100%; height: 100%; }
+        
+        .cred-back-text { 
+            text-align: center; 
+            font-size: 10px; 
+            padding: 0 15px; 
+            line-height: 1.5; 
+            margin-top: auto; 
+            margin-bottom: 20px; 
+        }
+
+        /* --- CARGO EDITABLE SECTION --- */
+        .cargo-editor { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid var(--border-color); margin-top: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .cargo-editor h3 { font-size: 18px; font-weight: 700; color: var(--primary-blue); margin: 0; display: flex; align-items: center; gap: 8px; }
+        .form-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+        .form-input-cargo { width: 100%; padding: 12px 15px; background-color: var(--bg-color); border: 1px solid transparent; border-radius: 10px; font-size: 14px; color: var(--text-main); box-sizing: border-box; outline: none; transition: all 0.2s; font-family: inherit; }
+        .form-input-cargo:focus { background-color: white; border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(38,63,164,0.1); }
+        .btn-guardar { background: var(--primary-blue); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(38,63,164,0.2); transition: 0.2s; width: 100%; }
+        .btn-guardar:hover { background: #1a2a6e; }
+
+        /* --- BOTONES FLOTANTES --- */
+        /* Modificado: Anchos fijos (width: 260px) y centrados para que ambos botones sean idénticos */
+        .fab-download {
+            position: fixed; bottom: 30px; right: 30px; background-color: var(--danger); color: white; border: none; border-radius: 50px;
+            padding: 16px 24px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+            display: none; align-items: center; justify-content: center; gap: 10px; z-index: 1000; transition: transform 0.2s;
+            width: 260px; box-sizing: border-box;
+        }
+        .fab-download:hover { transform: translateY(-5px); background-color: #b91c1c; }
+        
+        .fab-admin-close {
+            position: fixed; bottom: 95px; right: 30px; background-color: var(--text-muted); color: white; border: none; border-radius: 50px;
+            padding: 16px 24px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(100, 116, 139, 0.4);
+            display: none; align-items: center; justify-content: center; gap: 10px; z-index: 1000; transition: transform 0.2s;
+            width: 260px; box-sizing: border-box;
+        }
+        .fab-admin-close:hover { transform: translateY(-5px); background-color: #475569; }
+
+        @media (max-width: 768px) { 
+            .fab-download { bottom: 20px; right: 20px; padding: 14px 20px; font-size: 14px; width: 230px; }
+            .fab-admin-close { bottom: 75px; right: 20px; padding: 14px 20px; font-size: 14px; width: 230px; }
+        }
+        
+        /* Modales */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 350px; text-align: center; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-content p { font-size: 15px; color: var(--text-main); margin-bottom: 20px; font-weight: 600; line-height: 1.5; }
+        .btn-modal { width: 100%; padding: 12px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title" id="titulo-pagina">Credencial Digital</h1>
+        </div>
+        <div class="header-right" id="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="form-container">
+                <div class="page-header">
+                    <h1 id="titulo-principal">Tu Identificación Oficial</h1>
+                    <p id="subtitulo-principal">Visualiza y gestiona tu credencial digital. Completa el Cargo para activarla.</p>
+                </div>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p>Obteniendo datos desde la base de datos...</p>
+                </div>
+
+                <div id="tablas-container" style="display: none;">
+                    
+                    <div class="credencial-wrapper">
+                        
+                        <div class="credencial-card" id="credencial-front">
+                            <img src="https://i.ibb.co/7N2r6VDT/LOGOTIPO-3.jpg" class="cred-banner" alt="Banner Frontal">
+                            
+                            <div class="cred-name" id="lbl-name">[NOMBRE COMPLETO]</div>
+                            <div class="cred-nss" id="lbl-nss">NSS: S/N</div>
+                            
+                            <div class="cred-photo">
+                                <img id="img-photo" src="" alt="Fotografía">
+                            </div>
+
+                            <div class="cred-cargo">Cargo: <strong id="lbl-cargo"></strong></div>
+                            
+                            <img id="img-firma" class="cred-firma" src="" alt="Firma">
+                            
+                            <hr class="cred-line">
+                            <div class="cred-valid">Válido:<br>01/01/2026 - 31/12/2026</div>
+                        </div>
+
+                        <div class="credencial-card" id="credencial-back">
+                            
+                            <div class="cred-trucks-wrapper">
+                                <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" class="cred-trucks" alt="Logo Posterior">
+                            </div>
+                            
+                            <div class="cred-qr-container">
+                                <div style="position:absolute; bottom:10px; left:10px; width:10px; height:10px; background:#ef4444; border-radius:2px;"></div>
+                                <div style="position:absolute; bottom:10px; right:10px; width:10px; height:10px; background:#ef4444; border-radius:2px;"></div>
+                                <img id="img-qr" src="" alt="QR Code">
+                            </div>
+
+                            <div class="cred-back-text">
+                                <div style="font-weight: bold; font-size: 12px; margin-bottom: 5px;">Loreto Ingeniería</div>
+                                Ubicación: Niños Héroes S/N°, San Juan Ixtacala.<br>
+                                Tlalnepantla de Baz, México. C.P. 54160<br><br>
+                                Tel. 5553678113
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="cargo-editor" id="cargo-editor-section">
+                        <h3><i data-lucide="edit-3"></i> Actualizar tu Cargo</h3>
+                        <div>
+                            <label class="form-label">Introduce tu Cargo Actual</label>
+                            <input type="text" class="form-input-cargo" id="input-cargo" placeholder="Ej: Residente de Obra, Arquitecto Junior">
+                        </div>
+                        <button type="button" class="btn-guardar" onclick="guardarCargo()"><i data-lucide="save"></i> Guardar Cargo</button>
+                    </div>
+
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <button id="btn-descargar-pdf" class="fab-download" onclick="generarPDF()">
+        <i data-lucide="download"></i> Descargar Credencial
+    </button>
+    
+    <button id="btn-cerrar-credencial" class="fab-admin-close" onclick="window.location.href='credenciales.html'">
+        <i data-lucide="x"></i> Cerrar Credencial
+    </button>
+
+    <div id="modal-success-cargo" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="check-circle" style="color: var(--success-text); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p>Cargo actualizado exitosamente. Tu credencial ya lo muestra.</p>
+            <button class="btn-modal" style="background:var(--success-text); color:white; width:100%;" onclick="document.getElementById('modal-success-cargo').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN DE FIREBASE ACTUALIZADA
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        // ==========================================
+        // LÓGICA DE ADMINISTRADOR VS TRABAJADOR
+        // ==========================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewUid = urlParams.get('viewUid');
+        const isAdminView = !!viewUid;
+
+        const idUsuario = isAdminView ? viewUid : (localStorage.getItem('usuario') || 'SinID');
+        const nombreUsuario = isAdminView ? 'Admin' : (localStorage.getItem('nombre') || 'Usuario Desconocido');
+
+        // ==========================================
+        // 1. CARGAR MENÚ DINÁMICO
+        // ==========================================
+        fetch('menu.html')
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById('sidebar').innerHTML = html;
+                lucide.createIcons();
+                const linkInicio = document.getElementById('link-inicio');
+                if(linkInicio) linkInicio.classList.remove('active');
+                
+                if (isAdminView) {
+                    const linkCredAdmin = document.getElementById('link-credenciales-admin');
+                    if(linkCredAdmin) linkCredAdmin.classList.add('active');
+                } else {
+                    const linkCredencial = document.getElementById('link-credencial');
+                    if(linkCredencial) linkCredencial.classList.add('active');
+                }
+            });
+
+        document.getElementById('toggle-menu').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        document.getElementById('user-initial').innerText = nombreUsuario.charAt(0).toUpperCase();
+
+        // Ajustes de Interfaz para el Administrador
+        if (isAdminView) {
+            document.getElementById('titulo-pagina').innerText = "Visor de Credencial";
+            document.getElementById('titulo-principal').innerText = "Visor de Credencial (Solo Lectura)";
+            document.getElementById('subtitulo-principal').innerText = "Estás visualizando la credencial de un trabajador registrado en el sistema. Puedes descargarla en PDF.";
+            document.getElementById('header-right').style.display = 'none';
+            document.getElementById('cargo-editor-section').style.display = 'none';
+            document.getElementById('btn-cerrar-credencial').style.display = 'flex';
+        }
+
+        // ==========================================
+        // UTILERÍA: CONVERTIR URL DE IMAGEN A BASE64
+        // ==========================================
+        const imageUrlToBase64 = async (url) => {
+            if (!url) return null;
+            if (url.startsWith('data:')) return url;
+            try {
+                const response = await fetch(url + "?t=" + new Date().getTime());
+                const blob = await response.blob();
+                return await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.error("Error convirtiendo imagen a base64", e);
+                return null; 
+            }
+        };
+
+        // ==========================================
+        // 2. EXTRAER DATOS
+        // ==========================================
+        async function cargarDatosCredencial() {
+            try {
+                const doc = await db.collection("expedientes_personal").doc(idUsuario).get();
+                
+                const localDataStr = !isAdminView ? localStorage.getItem('expediente_guardado_' + idUsuario) : null;
+                const localData = localDataStr ? JSON.parse(localDataStr) : {};
+
+                if (doc.exists) {
+                    const datos = doc.data();
+                    
+                    const nombreStr = `${datos.nombre || ''} ${datos.paterno || ''} ${datos.materno || ''}`.trim();
+                    document.getElementById('lbl-name').innerText = nombreStr || (isAdminView ? 'SIN NOMBRE' : nombreUsuario);
+                    
+                    const nssStr = datos.nss || 'S/N';
+                    document.getElementById('lbl-nss').innerText = `NSS: ${nssStr}`;
+                    
+                    if (localData.fotos && localData.fotos.selfie && localData.fotos.selfie[0]) {
+                        document.getElementById('img-photo').src = localData.fotos.selfie[0];
+                        document.getElementById('img-photo').style.display = 'block';
+                    } else if (datos.urls_fotos && datos.urls_fotos.selfie) {
+                        const base64Photo = await imageUrlToBase64(datos.urls_fotos.selfie);
+                        if(base64Photo) {
+                            document.getElementById('img-photo').src = base64Photo;
+                        } else {
+                             document.getElementById('img-photo').src = datos.urls_fotos.selfie;
+                        }
+                        document.getElementById('img-photo').style.display = 'block';
+                    }
+
+                    if (localData.firma) {
+                        document.getElementById('img-firma').src = localData.firma;
+                        document.getElementById('img-firma').style.display = 'block';
+                    } else if (datos.url_firma) {
+                        const base64Firma = await imageUrlToBase64(datos.url_firma);
+                        if(base64Firma) {
+                             document.getElementById('img-firma').src = base64Firma;
+                        } else {
+                             document.getElementById('img-firma').src = datos.url_firma;
+                        }
+                        document.getElementById('img-firma').style.display = 'block';
+                    }
+
+                    const cargoSaved = datos.cargo_credencial || (!isAdminView ? localStorage.getItem('credencial_cargo_' + idUsuario) : null);
+                    if (cargoSaved) {
+                        document.getElementById('lbl-cargo').innerText = cargoSaved;
+                        if(!isAdminView) document.getElementById('input-cargo').value = cargoSaved;
+                    } else {
+                        document.getElementById('lbl-cargo').innerText = " ";
+                    }
+
+                    const rfcStr = datos.rfc || 'S/N';
+                    const curpStr = datos.curp || 'S/N';
+                    const vigenciaStr = '01/01/2026 - 31/12/2026';
+
+                    const textQR = `Loreto Ingeniería, Construcción, Edificación y Remodelación\nEmpleado: ${nombreStr}\nNSS: ${nssStr}\nRFC: ${rfcStr}\nCURP: ${curpStr}\nVigencia: ${vigenciaStr}`;
+                    const qrcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(textQR)}`;
+                    
+                    const base64QR = await imageUrlToBase64(qrcodeUrl);
+                    if(base64QR){
+                        document.getElementById('img-qr').src = base64QR;
+                    } else {
+                        document.getElementById('img-qr').src = qrcodeUrl;
+                    }
+
+                    mostrarCredencial();
+                } else {
+                    document.getElementById('tablas-container').innerHTML = `
+                        <div class="data-card" style="text-align:center; padding: 40px;">
+                            <i data-lucide="alert-triangle" style="width:48px; height:48px; color:var(--danger); margin-bottom:15px;"></i>
+                            <h2 style="color:var(--primary-blue);">Sin Expediente</h2>
+                            <p style="color:var(--text-muted);">No se encontró el expediente en la base de datos.</p>
+                            ${!isAdminView ? '<a href="expediente.html" style="display:inline-block; margin-top:15px; background:var(--primary-blue); color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold;">Ir a Expediente</a>' : ''}
+                        </div>
+                    `;
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('tablas-container').style.display = 'block';
+                    lucide.createIcons();
+                }
+            } catch (error) {
+                console.error("Error al obtener datos:", error);
+                alert("Error de conexión con la base de datos.");
+            }
+        }
+
+        function mostrarCredencial() {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('tablas-container').style.display = 'block';
+            document.getElementById('btn-descargar-pdf').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // 3. EDITAR Y GUARDAR CARGO (Solo Trabajador)
+        // ==========================================
+        function guardarCargo() {
+            if(isAdminView) return;
+            const inputCargo = document.getElementById('input-cargo').value.trim();
+            if(inputCargo === '') { alert("Por favor, introduce tu cargo."); return; }
+
+            document.getElementById('lbl-cargo').innerText = inputCargo;
+            localStorage.setItem('credencial_cargo_' + idUsuario, inputCargo);
+            
+            db.collection("expedientes_personal").doc(idUsuario).set({
+                cargo_credencial: inputCargo
+            }, { merge: true });
+
+            document.getElementById('modal-success-cargo').style.display = 'flex';
+        }
+
+        document.addEventListener('DOMContentLoaded', cargarDatosCredencial);
+
+        // ==========================================
+        // 4. GENERAR PDF
+        // ==========================================
+        function generarPDF() {
+            const btn = document.getElementById('btn-descargar-pdf');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Generando PDF...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            const fechaHoraDescarga = new Date().toLocaleString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            const pdfWrap = document.createElement('div');
+            pdfWrap.style.width = '100%';
+            pdfWrap.style.padding = '40px 0';
+            pdfWrap.style.backgroundColor = 'white';
+            
+            const cardsContainer = document.createElement('div');
+            cardsContainer.style.display = 'flex';
+            cardsContainer.style.flexDirection = 'row';
+            cardsContainer.style.justifyContent = 'center';
+            cardsContainer.style.gap = '30px';
+            
+            const frontClone = document.getElementById('credencial-front').cloneNode(true);
+            const backClone = document.getElementById('credencial-back').cloneNode(true);
+
+            frontClone.querySelector('#img-photo').src = document.getElementById('img-photo').src;
+            frontClone.querySelector('#img-firma').src = document.getElementById('img-firma').src;
+
+            [frontClone, backClone].forEach(clone => {
+                clone.style.width = '7cm';
+                clone.style.height = '10cm';
+                clone.style.boxShadow = 'none'; 
+                clone.style.border = '1px solid #94a3b8'; 
+                clone.style.margin = '0';
+                
+                const backLogoWrapper = clone.querySelector('.cred-trucks-wrapper');
+                if (backLogoWrapper) {
+                    backLogoWrapper.style.width = '100%';
+                    backLogoWrapper.style.height = '76px';
+                    backLogoWrapper.style.display = 'flex';
+                    backLogoWrapper.style.alignItems = 'center';
+                    backLogoWrapper.style.justifyContent = 'center';
+                }
+                const backLogo = clone.querySelector('.cred-trucks');
+                if (backLogo) {
+                    backLogo.style.maxHeight = '100%';
+                    backLogo.style.maxWidth = '90%';
+                    backLogo.style.objectFit = 'contain';
+                }
+
+                cardsContainer.appendChild(clone);
+            });
+
+            pdfWrap.appendChild(cardsContainer);
+            
+            const printFooter = document.createElement('div');
+            printFooter.style.textAlign = 'center';
+            printFooter.style.fontSize = '9px';
+            printFooter.style.color = '#64748b';
+            printFooter.style.marginTop = '40px';
+            printFooter.style.borderTop = '1px solid #e2e8f0';
+            printFooter.style.paddingTop = '10px';
+            printFooter.style.fontFamily = "Arial, sans-serif";
+            const fechaD = new Date().toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' });
+            printFooter.innerHTML = `Identificación Oficial generada el: ${fechaD}. Loreto Ingeniería S.A. de C.V.`;
+            pdfWrap.appendChild(printFooter);
+
+            const nombreExport = document.getElementById('lbl-name').innerText.replace(/ /g, '_');
+
+            const opt = {
+                margin:       15,
+                filename:     `Credencial_${nombreExport}.pdf`,
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' } 
+            };
+
+            html2pdf().set(opt).from(pdfWrap).save().then(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                lucide.createIcons();
+            }).catch(err => {
+                console.error("Error generando el PDF:", err);
+                alert("Hubo un error al generar tu PDF.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                lucide.createIcons();
+            });
+        }
+    </script>
+</body>
+</html>
