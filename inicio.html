@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Principal | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4;
+            --light-blue: #eef2ff;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- HEADER --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 50;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-main);
+            padding: 5px;
+        }
+
+        .header-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .header-title { display: block; }
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-initial {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: var(--primary-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                height: calc(100vh - 60px);
+                transform: translateX(-100%);
+                z-index: 40;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
+        /* Estilos inyectados para el menú dinámico */
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 15px; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        /* --- CONTENIDO PRINCIPAL --- */
+        .content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .welcome-box {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .welcome-box h1 { margin: 0 0 5px 0; font-size: 24px; color: var(--text-main); }
+        .welcome-box h2 { margin: 0 0 20px 0; font-size: 32px; color: var(--primary-blue); text-transform: uppercase; }
+
+        .logout-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #ef4444; 
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo Camiones" height="35">
+            <h1 class="header-title">Loreto - Ingeniería, Construcción, Edificación y Remodelación</h1>
+        </div>
+        
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="Logo Ingeniero" height="35" style="border-radius: 4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="welcome-box">
+                <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="Logo Loreto" style="width: 120px; margin-bottom: 15px;">
+                <h1>Bienvenido</h1>
+                <h2 id="welcome-name">Usuario</h2>
+                <p style="color: var(--text-muted);">Selecciona una opción del menú lateral para comenzar.</p>
+                
+                <button class="logout-btn" onclick="cerrarSesion()">
+                    <i data-lucide="log-out"></i> Cerrar Sesión
+                </button>
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        // 1. CARGAR MENÚ DINÁMICO
+        fetch('menu.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('sidebar').innerHTML = html;
+                
+                // Actualizar iconos dentro del menú recién cargado
+                lucide.createIcons(); 
+                
+                // Resaltar en azul en qué página estamos (ej. id="link-inicio")
+                // En otras páginas como asistencia.html, cambiarás 'link-inicio' por 'link-asistencia'
+                const paginaActual = document.getElementById('link-inicio');
+                if(paginaActual) {
+                    paginaActual.classList.add('active');
+                }
+            })
+            .catch(error => console.error('Error cargando el menú:', error));
+
+        // 2. Funcionalidad del botón hamburguesa para móviles
+        const menuBtn = document.getElementById('toggle-menu');
+        const sidebar = document.getElementById('sidebar');
+        
+        menuBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // 3. Leer el NOMBRE COMPLETO desde el inicio de sesión
+        const nombreGuardado = localStorage.getItem('nombre');
+        
+        if (nombreGuardado) {
+            document.getElementById('welcome-name').innerText = nombreGuardado;
+            // Usamos la primera letra del nombre completo para el circulito
+            document.getElementById('user-initial').innerText = nombreGuardado.charAt(0).toUpperCase();
+        }
+
+        // 4. Botón Cerrar Sesión
+        function cerrarSesion() {
+            localStorage.removeItem('usuario'); 
+            localStorage.removeItem('privilegio');
+            window.location.href = 'index.html'; 
+        }
+
+        // Inicializar iconos del encabezado y contenido principal
+        lucide.createIcons();
+    </script>
+</body>
+</html>
