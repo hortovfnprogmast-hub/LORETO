@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reportes Adicionales y Extraordinarios | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+        .user-dropdown { position: absolute; top: 60px; right: 15px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid var(--border-color); width: 220px; z-index: 1000; display: none; overflow: hidden; }
+        .user-dropdown.show { display: block; }
+        .user-card { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+        .user-meta .user-name { font-weight: 700; font-size: 14px; color: var(--text-main); }
+        .user-actions .dropdown-link { display: flex; align-items: center; gap: 8px; padding: 12px 15px; color: var(--danger); font-size: 14px; text-decoration: none; font-weight: 500; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 1200px; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; text-align: center; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; text-transform: uppercase; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .tabs-container { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; }
+        .tab-btn { background: #eef1f6; border: none; padding: 10px 20px; border-radius: 25px; font-size: 14px; font-weight: 600; color: #555; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; white-space: nowrap; }
+        .tab-btn.active { background: var(--primary-blue) !important; color: #ffffff !important; }
+        .tab-badge { background: #d1d5db; color: #555; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+        .tab-btn.active .tab-badge { background: #ffffff; color: var(--primary-blue); }
+
+        .search-bar-container { display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-end; flex-wrap: wrap; background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .search-group { display: flex; flex-direction: column; gap: 5px; }
+        .search-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .search-input { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; }
+        .search-text { flex-grow: 1; min-width: 200px; }
+        .btn-buscar { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; height: 40px; display: flex; align-items: center; gap: 8px; }
+        .btn-limpiar { background: #64748b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; height: 40px; display: flex; align-items: center; gap: 8px; }
+
+        .data-table-container { background: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid var(--border-color); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 800px; }
+        thead { background: var(--light-blue); border-bottom: 1px solid var(--border-color); }
+        th, td { padding: 14px 15px; font-size: 13px; color: var(--text-main); }
+        th { font-weight: 700; color: var(--primary-blue); text-transform: uppercase; font-size: 11px; }
+        tbody tr { border-bottom: 1px solid #f1f5f9; }
+        tbody tr:last-child { border-bottom: none; }
+        
+        .status-pill { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block; white-space: nowrap; }
+        .status-borrador { background: #fef3c7; color: #d97706; }
+        .status-proceso { background: #dcfce7; color: #16a34a; }
+
+        .btn-pdf { background: var(--primary-blue); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+
+        #custom-alert { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .modal-card-alert { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        #alert-icon-container { margin-bottom: 16px; display: flex; justify-content: center; }
+        #alert-title { margin: 0 0 8px 0; font-size: 18px; color: var(--text-main); font-weight: 700; }
+        #alert-msg { margin: 0 0 24px 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; text-align: left; }
+        #alert-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; color: white; background: var(--primary-blue); font-weight: 700; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Reportes Adicionales y Extraordinarios</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial-header" onclick="document.getElementById('user-dropdown').classList.toggle('show')">U</div>
+            <div class="user-dropdown" id="user-dropdown">
+                <div class="user-card"><div class="user-meta"><div class="user-name" id="user-dropdown-name">Cargando...</div></div></div>
+                <div class="user-actions"><a href="index.html" class="dropdown-link" onclick="localStorage.clear();"><i data-lucide="log-out" style="width:16px;"></i> Cerrar sesión</a></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Solicitudes de Todas las Obras</h1>
+                    <p>Visualización general de solicitudes adicionales y extraordinarias</p>
+                </div>
+
+                <div class="tabs-container">
+                    <button class="tab-btn active" onclick="cambiarTab('Guardados')" id="tab-Guardados">Guardados <span class="tab-badge" id="badge-Borrador">0</span></button>
+                    <button class="tab-btn" onclick="cambiarTab('Realizados')" id="tab-Realizados">Realizados <span class="tab-badge" id="badge-Realizado">0</span></button>
+                </div>
+
+                <div class="search-bar-container">
+                    <div class="search-group">
+                        <label>Fecha Inicio</label>
+                        <input type="date" id="search-fecha-inicio" class="search-input">
+                    </div>
+                    <div class="search-group">
+                        <label>Fecha Fin</label>
+                        <input type="date" id="search-fecha-fin" class="search-input">
+                    </div>
+                    <div class="search-group" style="flex-grow: 1;">
+                        <label>Buscar</label>
+                        <input type="text" id="search-text" class="search-input search-text" placeholder="Folio, concepto, tipo, solicitante...">
+                    </div>
+                    <button class="btn-buscar" onclick="renderTabla()"><i data-lucide="search" style="width:16px;"></i> Buscar</button>
+                    <button class="btn-limpiar" onclick="limpiarFiltros()"><i data-lucide="eraser" style="width:16px;"></i> Limpiar</button>
+                </div>
+
+                <div class="data-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Folio</th>
+                                <th>Concepto</th>
+                                <th>Tipo</th>
+                                <th>Solicitante</th>
+                                <th style="white-space: nowrap;">Fecha</th>
+                                <th style="min-width: 120px; text-align: center;">Estado</th>
+                                <th style="text-align: center;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-solicitudes">
+                            <tr><td colspan="7" style="padding: 30px; text-align: center; color: var(--text-muted);">Cargando solicitudes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="custom-alert"><div class="modal-card-alert"><div id="alert-icon-container"></div><h3 id="alert-title"></h3><p id="alert-msg"></p><button id="alert-btn" onclick="closeCustomAlert()">Aceptar</button></div></div>
+
+    <script>
+        // Configuración de Firebase actualizada
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        let todasSolicitudes = [], tabActual = 'Guardados';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const usuario = localStorage.getItem('usuario'), nombre = localStorage.getItem('nombre');
+            if (!usuario) { window.location.href = 'index.html'; return; }
+            document.getElementById('user-initial-header').innerText = (nombre || 'U').charAt(0).toUpperCase();
+            document.getElementById('user-dropdown-name').innerText = nombre || 'Usuario';
+
+            fetch('menu.html?v=2').then(res => res.text()).then(html => {
+                document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+                const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+                const linkAdic = document.getElementById('link-reportes-adicionales'); if(linkAdic) linkAdic.classList.add('active');
+            }).catch(() => {
+                document.getElementById('sidebar').innerHTML = `<nav class="sidebar-nav"><div class="sidebar-section"><span class="section-title">Navegación</span><a href="inicio.html" class="nav-item"><i data-lucide="home" style="width:18px;height:18px;"></i> Inicio</a></div></nav>`;
+                lucide.createIcons();
+            });
+
+            document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+            window.addEventListener('click', (e) => { if (!e.target.matches('#user-initial-header')) { const dd = document.getElementById('user-dropdown'); if(dd.classList.contains('show')) dd.classList.remove('show'); } });
+            
+            cargarSolicitudes();
+        });
+
+        function showCustomAlert(t, m, s=true) {
+            const a = document.getElementById('custom-alert');
+            document.getElementById('alert-title').innerText = t;
+            document.getElementById('alert-msg').innerText = m;
+            const i = document.getElementById('alert-icon-container'), b = document.getElementById('alert-btn');
+            if(s){ i.innerHTML='<i data-lucide="check-circle" style="width:48px;height:48px;color:var(--success)"></i>'; b.style.background='var(--success)'; }
+            else{ i.innerHTML='<i data-lucide="alert-triangle" style="width:48px;height:48px;color:var(--danger)"></i>'; b.style.background='var(--danger)'; }
+            a.style.display = 'flex'; lucide.createIcons();
+        }
+        function closeCustomAlert() { document.getElementById('custom-alert').style.display = 'none'; }
+
+        function cargarSolicitudes() {
+            db.collection("solicitudes_adicionales").onSnapshot(snapshot => {
+                todasSolicitudes = [];
+                snapshot.forEach(doc => {
+                    todasSolicitudes.push({ id_doc: doc.id, ...doc.data() });
+                });
+                todasSolicitudes.sort((a, b) => (b.fecha_creacion || "").localeCompare(a.fecha_creacion || ""));
+                actualizarBadges();
+                renderTabla();
+            }, error => {
+                showCustomAlert("Error", `Mensaje: ${error.message}`, false);
+            });
+        }
+
+        function actualizarBadges() {
+            let b = 0, r = 0;
+            todasSolicitudes.forEach(o => { if(o.estado === 'Borrador') b++; else if(o.estado === 'En proceso') r++; });
+            document.getElementById('badge-Borrador').innerText = b;
+            document.getElementById('badge-Realizado').innerText = r;
+        }
+
+        function cambiarTab(e) {
+            tabActual = e;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const a = document.getElementById(`tab-${e}`); if(a) a.classList.add('active');
+            renderTabla();
+        }
+
+        function limpiarFiltros() {
+            document.getElementById('search-fecha-inicio').value = '';
+            document.getElementById('search-fecha-fin').value = '';
+            document.getElementById('search-text').value = '';
+            renderTabla();
+        }
+
+        function renderTabla() {
+            const t = document.getElementById('tabla-solicitudes'); t.innerHTML = '';
+            
+            const fInicio = document.getElementById('search-fecha-inicio').value;
+            const fFin = document.getElementById('search-fecha-fin').value;
+            const searchText = document.getElementById('search-text').value.toLowerCase().trim();
+
+            let f = todasSolicitudes.filter(o => { 
+                if(tabActual === 'Guardados' && o.estado !== 'Borrador') return false; 
+                if(tabActual === 'Realizados' && o.estado !== 'En proceso') return false; 
+                
+                let docDate = o.fecha || ''; 
+                if (fInicio && docDate < fInicio) return false;
+                if (fFin && docDate > fFin) return false;
+                
+                if (searchText) {
+                    const folio = (o.folio || o.id_doc || '').toLowerCase();
+                    const concepto = (o.concepto || '').toLowerCase();
+                    const tipo = (o.tipo_solicitud || '').toLowerCase();
+                    const residente = (o.residente_nombre || '').toLowerCase();
+                    if (!folio.includes(searchText) && !concepto.includes(searchText) && !tipo.includes(searchText) && !residente.includes(searchText)) {
+                        return false;
+                    }
+                }
+                return true; 
+            });
+            
+            if(f.length === 0) { 
+                t.innerHTML = `<tr><td colspan="7" style="padding:30px;color:var(--text-muted)">Sin solicitudes que coincidan con la búsqueda.</td></tr>`; 
+                return; 
+            }
+            
+            f.forEach(o => {
+                let estadoClass = o.estado === 'Borrador' ? 'status-borrador' : 'status-proceso';
+                const r = document.createElement('tr');
+                r.innerHTML = `
+                    <td style="font-weight:bold; color: var(--primary-blue);">${o.folio||o.id_doc}</td>
+                    <td>${o.concepto||'N/A'}</td>
+                    <td>${o.tipo_solicitud||'N/A'}</td>
+                    <td>${o.residente_nombre||'N/A'}</td>
+                    <td style="white-space: nowrap;">${o.fecha||'N/A'}</td>
+                    <td style="text-align: center;"><span class="status-pill ${estadoClass}">${o.estado}</span></td>
+                    <td style="text-align: center;">
+                        <button type="button" onclick="verPDFSolicitud('${o.id_doc}')" class="btn-pdf">
+                            <i data-lucide="file-text" style="width:14px"></i> Ver PDF
+                        </button>
+                    </td>
+                `;
+                t.appendChild(r);
+            });
+            lucide.createIcons();
+        }
+
+        function verPDFSolicitud(id) {
+            const o = todasSolicitudes.find(x => x.id_doc === id); 
+            if(!o) { showCustomAlert("Error", "Solicitud no encontrada.", false); return; }
+            const data = {
+                folio: o.folio || o.id_doc || '', 
+                fecha: o.fecha || '', 
+                tipo_solicitud: o.tipo_solicitud || '',
+                proyecto: o.proyecto || '',
+                ubicacion_obra: o.ubicacion_obra || '',
+                partida: o.partida || '', 
+                justificacion: o.justificacion || '',
+                clave: o.clave || '', 
+                concepto: o.concepto || '', 
+                localizacion_proyecto: o.localizacion_proyecto || '',
+                unidad: o.unidad || '', 
+                largo: o.largo || '0', 
+                ancho: o.ancho || '0',
+                alto: o.alto || '0', 
+                pzas: o.pzas || '0',
+                resultado: o.subtotal ? o.subtotal.toFixed(2) : '0.00', 
+                parcial: o.pzas ? o.pzas.toFixed(2) : '0.00', 
+                total: o.total ? o.total.toFixed(2) : '0.00',
+                observaciones: o.observaciones || '', 
+                residente_nombre: o.residente_nombre || '',
+                fotos_evidencia: (o.urls_evidencia || []).concat([null, null, null, null]).slice(0, 4),
+                firma: o.url_firma || null
+            };
+            sessionStorage.setItem('DatosAdicionalPDF', JSON.stringify(data));
+            window.open('pdf_reporte_adicionales.html', '_blank');
+        }
+    </script>
+</body>
+</html>
