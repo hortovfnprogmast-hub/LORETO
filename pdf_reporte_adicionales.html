@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PDF Solicitud Adicionales - Loreto Ingeniería</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root { --loreto-blue: #263fa4; --loreto-light: #eef2ff; --tm-text: #1e293b; --tm-border: #cbd5e1; }
+        body { font-family: 'Inter', Arial, Helvetica, sans-serif; margin: 0; padding: 20px; background-color: #555; color: var(--tm-text); font-size: 10px; line-height: 1.15; display: flex; flex-direction: column; align-items: center; }
+        
+        .btn-descargar { position: fixed; top: 15px; right: 15px; background-color: var(--loreto-blue); color: white; border: none; padding: 10px 18px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; }
+        .btn-descargar:hover { background-color: #1a2a6e; }
+        .btn-regresar { position: fixed; top: 15px; left: 15px; background-color: #64748b; color: white; border: none; padding: 10px 18px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; }
+        .btn-regresar:hover { background-color: #475569; }
+
+        .page { 
+            width: 279.4mm; 
+            height: 215.9mm; 
+            background: white; 
+            margin: 0 auto 20px auto; 
+            padding: 5mm 8mm; 
+            box-sizing: border-box; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.5); 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        .content-wrapper { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 0; 
+            overflow: hidden; 
+        }
+
+        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4mm; border-bottom: 3px solid var(--loreto-blue); padding-bottom: 4mm; flex-shrink: 0; }
+        .logo-img { width: 130px; }
+        .header-titles { text-align: center; flex-grow: 1; padding: 0 12px; }
+        .title-blue { color: var(--loreto-blue); font-size: 11px; font-weight: 800; text-transform: uppercase; margin: 0; line-height: 1.3; }
+        
+        .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 3mm; background: var(--loreto-light); padding: 3mm 5mm; border: 1px solid var(--tm-border); border-radius: 3px; flex-shrink: 0; }
+        .info-item label { display: block; font-size: 7px; font-weight: 700; color: var(--loreto-blue); text-transform: uppercase; margin-bottom: 1px; }
+        .info-item span { display: block; font-size: 10px; color: var(--tm-text); font-weight: 600; }
+        .info-item-full { grid-column: 1 / span 3; }
+
+        .obs-box { border: 1px solid var(--tm-border); padding: 2mm 3mm; border-radius: 3px; background: white; margin-bottom: 3mm; flex-shrink: 0; }
+        .obs-title { font-size: 7px; font-weight: 800; color: var(--loreto-blue); text-transform: uppercase; border-bottom: 1px solid var(--tm-border); margin-bottom: 2mm; padding-bottom: 1mm; }
+
+        .main-table { width: 100%; border-collapse: collapse; margin-bottom: 3mm; font-size: 8px; flex-shrink: 0; }
+        .main-table th { background-color: var(--loreto-blue); color: white; padding: 2mm 3mm; text-align: center; font-weight: 700; border: 1px solid var(--loreto-blue); font-size: 7px; }
+        .main-table td { border: 1px solid var(--tm-border); padding: 2mm 3mm; text-align: center; font-weight: 500; }
+        .main-table .label-cell { background-color: #f8fafc; font-weight: 700; text-align: left; }
+        /* Altura reducida a la mitad (12.5mm) y alineación hacia arriba */
+        .main-table .data-row td { padding: 2mm 3mm; font-size: 9px; height: 12.5mm; vertical-align: top; }
+
+        .photos-title { font-size: 7px; font-weight: 800; color: var(--loreto-blue); margin-bottom: 2mm; text-transform: uppercase; flex-shrink: 0; }
+
+        .photos-grid-2x2 { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            grid-template-rows: 1fr 1fr; 
+            gap: 2mm; 
+            flex: 1; 
+            min-height: 0; 
+        }
+        .photo-box { 
+            border: 1px solid var(--tm-border); 
+            background-color: var(--loreto-light); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            border-radius: 3px; 
+            min-height: 0;
+        }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        @media print {
+            body { background-color: white; padding: 0; margin: 0; }
+            .page { box-shadow: none; margin: 0; border: none; }
+            .btn-descargar, .btn-regresar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="btn-regresar" onclick="window.close()">Cerrar PDF</button>
+    <button class="btn-descargar" id="btn-descargar" onclick="generarPDF()">Descargar PDF</button>
+
+    <div id="contenido-pdf">
+        <div class="page">
+            <div class="content-wrapper">
+                
+                <div class="header-container">
+                    <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Loreto Logo" class="logo-img">
+                    <div class="header-titles">
+                        <h1 class="title-blue">FORMATO PARA SOLICITUD DE ADICIONALES / EXTRAORDINARIOS / DEDUCTIVAS</h1>
+                        <h2 class="title-blue" style="font-size: 10px; margin-top: 1mm;">LORETO - INGENIERÍA CONSTRUCCIÓN EDIFICACIÓN</h2>
+                    </div>
+                    <div style="text-align: right; font-size: 9px; font-weight: 700; color: var(--loreto-blue);">
+                        Folio: <span id="pdf-folio"></span><br>
+                        Fecha: <span id="pdf-fecha"></span>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item"><label>Tipo de Solicitud</label><span id="pdf-tipo"></span></div>
+                    <div class="info-item"><label>Proyecto</label><span id="pdf-proyecto"></span></div>
+                    <div class="info-item"><label>Ubicación de la obra</label><span id="pdf-ubicacion-obra"></span></div>
+                    <div class="info-item info-item-full"><label>Partida</label><span id="pdf-partida"></span></div>
+                </div>
+
+                <div class="obs-box">
+                    <div class="obs-title">Justificación de la Solicitud</div>
+                    <div id="pdf-justificacion" style="font-size: 8px;"></div>
+                </div>
+
+                <table class="main-table">
+                    <thead>
+                        <tr>
+                            <th width="8%">CLAVE</th>
+                            <th width="32%">CONCEPTO</th>
+                            <th width="14%">LOCALIZACIÓN</th>
+                            <th width="7%">UNIDAD</th>
+                            <th width="6%">LARGO</th>
+                            <th width="6%">ANCHO</th>
+                            <th width="6%">ALTO</th>
+                            <th width="7%">SUBTOTAL</th>
+                            <th width="6%">PZAS</th>
+                            <th width="8%">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="data-row">
+                            <td id="pdf-clave"></td>
+                            <td id="pdf-concepto" style="text-align: left;"></td>
+                            <td id="pdf-localizacion" style="text-align: left;"></td>
+                            <td id="pdf-unidad"></td>
+                            <td id="pdf-largo"></td>
+                            <td id="pdf-ancho"></td>
+                            <td id="pdf-alto"></td>
+                            <td style="font-weight:800;" id="pdf-subtotal"></td>
+                            <td id="pdf-pzas"></td>
+                            <td style="font-weight:800; color: var(--loreto-blue);" id="pdf-total"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="obs-box">
+                    <div class="obs-title">Localización del concepto dentro del proyecto</div>
+                    <div id="pdf-localizacion-concepto" style="font-size: 8px;"></div>
+                </div>
+
+                <div class="obs-box">
+                    <div class="obs-title">Observaciones</div>
+                    <div id="pdf-observaciones" style="font-size: 8px;"></div>
+                </div>
+
+                <div class="photos-title">Evidencia Fotográfica</div>
+                <div class="photos-grid-2x2">
+                    <div class="photo-box" id="pdf-foto-0"></div>
+                    <div class="photo-box" id="pdf-foto-1"></div>
+                    <div class="photo-box" id="pdf-foto-2"></div>
+                    <div class="photo-box" id="pdf-foto-3"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function esperarImagenes() {
+            return new Promise((resolve) => {
+                const imagenes = document.querySelectorAll('#contenido-pdf img');
+                let cargadas = 0;
+                const total = imagenes.length;
+                if (total === 0) { resolve(); return; }
+                imagenes.forEach((img) => {
+                    if (img.complete && img.naturalHeight !== 0) {
+                        cargadas++;
+                        if (cargadas === total) resolve();
+                    } else {
+                        img.onload = () => { cargadas++; if (cargadas === total) resolve(); };
+                        img.onerror = () => { cargadas++; if (cargadas === total) resolve(); };
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const dataStr = sessionStorage.getItem('DatosAdicionalPDF');
+            if (dataStr) {
+                const data = JSON.parse(dataStr);
+                
+                document.getElementById('pdf-folio').innerText = data.folio || '';
+                document.getElementById('pdf-fecha').innerText = data.fecha || '';
+                document.getElementById('pdf-tipo').innerText = data.tipo_solicitud || '';
+                document.getElementById('pdf-proyecto').innerText = data.proyecto || '';
+                document.getElementById('pdf-ubicacion-obra').innerText = data.ubicacion_obra || '';
+                document.getElementById('pdf-partida').innerText = data.partida || '';
+                document.getElementById('pdf-justificacion').innerText = data.justificacion || '';
+                document.getElementById('pdf-clave').innerText = data.clave || '';
+                document.getElementById('pdf-concepto').innerText = data.concepto || '';
+                document.getElementById('pdf-localizacion').innerText = data.localizacion_proyecto || '';
+                document.getElementById('pdf-unidad').innerText = data.unidad || '';
+                document.getElementById('pdf-largo').innerText = data.largo || '0';
+                document.getElementById('pdf-ancho').innerText = data.ancho || '0';
+                document.getElementById('pdf-alto').innerText = data.alto || '0';
+                
+                // Adaptación para leer correctamente Subtotal y PZAS
+                document.getElementById('pdf-subtotal').innerText = data.subtotal || data.resultado || '0.00';
+                document.getElementById('pdf-pzas').innerText = data.pzas || data.parcial || '0';
+                document.getElementById('pdf-total').innerText = data.total || '0.00';
+                
+                document.getElementById('pdf-localizacion-concepto').innerText = data.localizacion_proyecto || '';
+                document.getElementById('pdf-observaciones').innerText = data.observaciones || '';
+
+                data.fotos_evidencia.forEach((foto, index) => {
+                    if (foto) document.getElementById(`pdf-foto-${index}`).innerHTML = '<img src="' + foto + '">';
+                });
+            } else {
+                alert("No se encontraron datos de la solicitud.");
+            }
+        });
+
+        async function generarPDF() {
+            const btn = document.getElementById('btn-descargar');
+            const btnR = document.querySelector('.btn-regresar');
+            
+            btn.innerText = 'Cargando fotos...';
+            btn.disabled = true;
+            btnR.style.display = 'none';
+            window.scrollTo(0, 0);
+
+            await esperarImagenes();
+
+            btn.innerText = 'Generando PDF...';
+
+            const elemento = document.getElementById('contenido-pdf');
+            const pages = document.querySelectorAll('.page');
+            const originalStyles = [];
+            
+            pages.forEach((p) => {
+                originalStyles.push({ margin: p.style.margin, boxShadow: p.style.boxShadow, height: p.style.height });
+                p.style.margin = '0';
+                p.style.boxShadow = 'none';
+                p.style.height = '215.9mm'; 
+            });
+
+            const proyectoRaw = document.getElementById('pdf-proyecto').innerText || 'SIN_PROYECTO';
+            const proyecto = proyectoRaw.replace(/[\s\/:,]/g, '_');
+            
+            const opciones = {
+                margin: 0,
+                filename: `SOLICITUD_ADICIONAL_${proyecto}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'letter', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opciones).from(elemento).save().then(() => {
+                btn.style.display = 'block';
+                btnR.style.display = 'block';
+                btn.innerText = 'Descargar PDF';
+                btn.disabled = false;
+                pages.forEach((p, index) => {
+                    p.style.margin = originalStyles[index].margin;
+                    p.style.boxShadow = originalStyles[index].boxShadow;
+                    p.style.height = originalStyles[index].height;
+                });
+            });
+        }
+    </script>
+</body>
+</html>
