@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lista de Credenciales | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4;
+            --light-blue: #eef2ff;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #dc2626;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* --- HEADER Y LAYOUT --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; }
+            .sidebar.open { transform: translateX(0); }
+            .header-title { display: none; }
+        }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 15px; padding-bottom: 0; border-bottom: none; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        /* --- CONTENIDO PRINCIPAL --- */
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 96%; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 30px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .data-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid var(--border-color); }
+        
+        /* --- ESTILOS DE LA TABLA --- */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; border: 1px solid var(--border-color); }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 1250px; }
+        
+        /* Encabezados centrados */
+        .data-table th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 12px; font-weight: 800; text-transform: uppercase; padding: 14px 12px; text-align: center; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+        
+        /* Celdas generales */
+        .data-table td { padding: 12px 15px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid var(--border-color); font-weight: 500; vertical-align: middle; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tbody tr:hover { background-color: #f8fafc; }
+
+        /* Miniatura de la foto en la tabla */
+        .table-photo { width: 45px; height: 45px; border-radius: 8px; object-fit: cover; cursor: zoom-in; border: 1px solid var(--border-color); transition: transform 0.2s; margin: 0 auto; display: block;}
+        .table-photo:hover { transform: scale(1.05); border-color: var(--primary-blue); }
+        .table-photo-empty { width: 45px; height: 45px; border-radius: 8px; background: var(--bg-color); display: flex; align-items: center; justify-content: center; color: #cbd5e1; border: 1px dashed #cbd5e1; margin: 0 auto;}
+
+        /* Botón rojo de la tabla */
+        .btn-ver-credencial {
+            background-color: var(--danger);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+            width: 100%;
+            max-width: 180px;
+            box-sizing: border-box;
+            margin: 0 auto;
+            white-space: nowrap;
+        }
+        .btn-ver-credencial:hover { background-color: #b91c1c; }
+
+        /* --- VISUALIZADOR DE IMÁGENES --- */
+        #image-viewer-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center;
+            cursor: zoom-out; backdrop-filter: blur(3px);
+        }
+        #image-viewer-img {
+            max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 4px 25px rgba(0,0,0,0.5);
+            object-fit: contain; animation: popIn 0.2s ease-out;
+        }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Control de Credenciales</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">A</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Credenciales del Personal</h1>
+                    <p>Relación de todos los trabajadores registrados. Selecciona una credencial para visualizarla y descargarla.</p>
+                </div>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p>Cargando lista de trabajadores...</p>
+                </div>
+
+                <div class="data-card" id="tabla-container" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">#</th>
+                                    <th style="width: 70px; text-align: center;">Foto</th>
+                                    <th style="width: 28%; text-align: center;">Nombre del Trabajador</th>
+                                    <th style="width: 15%; text-align: center;">Cargo</th>
+                                    <th style="width: 15%; text-align: center;">NSS</th>
+                                    <th style="width: 15%; text-align: center;">Cuenta CLABE</th>
+                                    <th style="width: 220px; text-align: center;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-expedientes">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <div id="image-viewer-overlay" onclick="closeImageViewer()">
+        <img id="image-viewer-img" src="" alt="Vista previa">
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE FIREBASE ACTUALIZADA
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        // CARGAR MENÚ DINÁMICO
+        fetch('menu.html')
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById('sidebar').innerHTML = html;
+                lucide.createIcons();
+                const linkInicio = document.getElementById('link-inicio');
+                if(linkInicio) linkInicio.classList.remove('active');
+                
+                // NOTA: Asegúrate de tener un enlace en menu.html con id="link-credenciales-admin"
+                const linkCredAdmin = document.getElementById('link-credenciales-admin');
+                if(linkCredAdmin) linkCredAdmin.classList.add('active');
+            });
+
+        document.getElementById('toggle-menu').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        // FUNCIONES DEL VISUALIZADOR DE IMÁGENES
+        function openImageViewer(src) {
+            document.getElementById('image-viewer-img').src = src;
+            document.getElementById('image-viewer-overlay').style.display = 'flex';
+        }
+        function closeImageViewer() {
+            document.getElementById('image-viewer-overlay').style.display = 'none';
+            document.getElementById('image-viewer-img').src = '';
+        }
+
+        // CARGAR Y ORDENAR EXPEDIENTES
+        async function cargarExpedientes() {
+            try {
+                const snapshot = await db.collection("expedientes_personal").get();
+                let listaTrabajadores = [];
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const nombreCompleto = `${data.nombre || ''} ${data.paterno || ''} ${data.materno || ''}`.trim().toUpperCase();
+                    
+                    listaTrabajadores.push({
+                        id: doc.id,
+                        nombre: nombreCompleto || 'SIN NOMBRE REGISTRADO',
+                        cargo: data.cargo_credencial || '-',
+                        nss: data.nss || '-',
+                        clabe: data.cuenta_clabe || '-',
+                        fotoUrl: (data.urls_fotos && data.urls_fotos.selfie) ? data.urls_fotos.selfie : null
+                    });
+                });
+
+                // Ordenar de forma alfabética (A-Z)
+                listaTrabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+                let html = '';
+                let contador = 1;
+
+                listaTrabajadores.forEach(trabajador => {
+                    const fotoHtml = trabajador.fotoUrl 
+                        ? `<img src="${trabajador.fotoUrl}" class="table-photo" onclick="openImageViewer(this.src)" title="Clic para ampliar">` 
+                        : `<div class="table-photo-empty"><i data-lucide="user"></i></div>`;
+
+                    html += `
+                        <tr>
+                            <td style="text-align: center; font-weight: 700; color: var(--text-muted);">${contador}</td>
+                            <td style="text-align: center;">${fotoHtml}</td>
+                            <td style="font-weight: 700; color: var(--primary-blue); text-align: left;">${trabajador.nombre}</td>
+                            <td style="text-align: left;">${trabajador.cargo}</td>
+                            <td style="font-family: monospace; font-size: 14px; letter-spacing: 0.5px; text-align: left;">${trabajador.nss}</td>
+                            <td style="font-family: monospace; font-size: 14px; letter-spacing: 0.5px; text-align: left;">${trabajador.clabe}</td>
+                            <td style="text-align: center;">
+                                <a href="credencial.html?viewUid=${trabajador.id}" class="btn-ver-credencial">
+                                    <i data-lucide="id-card"></i> Ver Credencial
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                    contador++;
+                });
+
+                document.getElementById('tbody-expedientes').innerHTML = html;
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('tabla-container').style.display = 'block';
+                lucide.createIcons();
+
+            } catch (error) {
+                console.error("Error al cargar las credenciales:", error);
+                alert("Hubo un error al descargar la lista.");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', cargarExpedientes);
+    </script>
+</body>
+</html>
