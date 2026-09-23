@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Expediente Personal | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4;
+            --light-blue: #eef2ff;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #dc2626;
+            --success: #10b981;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* --- HEADER Y LAYOUT --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; }
+            .sidebar.open { transform: translateX(0); }
+            .header-title { display: none; }
+        }
+
+        /* --- ESTILOS DEL MENÚ DINÁMICO --- */
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        /* --- FORMULARIOS ESTILO TARJETAS --- */
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .form-container { max-width: 900px; margin: 0 auto; padding-bottom: 100px; }
+        
+        .page-header { margin-bottom: 30px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .form-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid var(--border-color); margin-bottom: 25px; }
+        .section-title { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--primary-blue); margin: 0 0 20px 0; padding-bottom: 12px; border-bottom: 1px solid var(--bg-color); }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+        .form-input, .form-select { width: 100%; padding: 12px 15px; background-color: var(--bg-color); border: 1px solid transparent; border-radius: 10px; font-size: 14px; color: var(--text-main); box-sizing: border-box; outline: none; transition: all 0.2s; font-family: inherit; }
+        .form-input:focus, .form-select:focus { background-color: white; border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(38,63,164,0.1); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        @media (max-width: 640px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+        /* --- FOTOS Y DOCUMENTOS --- */
+        .photo-controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        .btn-photo { background: var(--primary-blue); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; }
+        .btn-photo-sec { background: white; color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 15px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; }
+        
+        .photo-slot { aspect-ratio: 1; border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; width: 100%; max-width: 180px; margin: 0 auto; }
+        .photo-slot img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+        .remove-photo { position: absolute; top: 5px; right: 5px; background: rgba(220,38,38,0.9); color: white; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; cursor: pointer; font-weight: bold; font-size: 14px; }
+
+        .docs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 20px; }
+        .doc-item { text-align: center; border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; background: var(--bg-color); }
+        .doc-item label { font-size: 11px; font-weight: 700; color: var(--primary-blue); display: block; margin-bottom: 10px; height: 30px; }
+        .doc-item .photo-slot { max-width: 100%; aspect-ratio: 4/3; margin-bottom: 10px; }
+
+        #image-viewer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center; cursor: zoom-out; backdrop-filter: blur(3px); }
+        #image-viewer-img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 4px 25px rgba(0,0,0,0.5); object-fit: contain; animation: popIn 0.2s ease-out; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* --- FIRMA --- */
+        .signature-container { border: 2px dashed #cbd5e1; border-radius: 12px; background: white; margin-bottom: 10px; width: 100%; overflow: hidden; }
+        .signature-pad { width: 100%; height: 200px; cursor: crosshair; touch-action: none; display: block; } 
+        .btn-clear { background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; margin-left: auto; }
+
+        /* --- BOTONES FINALES --- */
+        .action-buttons { display: flex; gap: 15px; margin-top: 30px; width: 100%; }
+        .btn-guardar { background: var(--primary-blue); color: white; border: none; padding: 16px; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; flex: 2; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(38,63,164,0.2); transition: 0.2s; }
+        .btn-guardar:hover { background: #1a2a6e; }
+        .btn-cancelar { background: var(--danger); color: white; border: none; padding: 16px; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .btn-cancelar:hover { background: #b91c1c; }
+        .btn-actualizar { background: var(--success); color: white; border: none; padding: 16px; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); transition: 0.2s; }
+        .btn-actualizar:hover { background: #059669; }
+
+        /* --- BOTÓN FLOTANTE DESCARGAR PDF --- */
+        .fab-download {
+            position: fixed; bottom: 30px; right: 30px; background-color: var(--danger); color: white; border: none; border-radius: 50px;
+            padding: 16px 24px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+            display: none; align-items: center; gap: 10px; z-index: 1000; transition: transform 0.2s;
+        }
+        .fab-download:hover { transform: translateY(-5px); background-color: #b91c1c; }
+        @media (max-width: 768px) { .fab-download { bottom: 20px; right: 20px; padding: 14px 20px; font-size: 14px; } }
+
+        /* --- MODO BLOQUEADO --- */
+        .is-locked .form-input, .is-locked .form-select { pointer-events: none; opacity: 0.7; }
+        .is-locked .photo-controls { display: none; }
+        .is-locked .remove-photo { display: none; }
+        .is-locked .btn-clear { display: none; }
+        .is-locked .signature-pad { pointer-events: none; }
+
+        /* --- MODALES --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 350px; text-align: center; animation: fadeIn 0.3s; }
+        .modal-content p { font-size: 15px; color: var(--text-main); margin-bottom: 20px; font-weight: 600; line-height: 1.5; }
+        .modal-buttons { display: flex; gap: 10px; }
+        .btn-modal { flex: 1; padding: 12px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; }
+        
+        #camera-stream { width: 100%; max-width: 500px; aspect-ratio: 3/4; background: black; border-radius: 12px; overflow: hidden; margin: 0 auto; position: relative; }
+        #camera-video { width: 100%; height: 100%; object-fit: cover; }
+        .camera-controls { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+    </style>
+</head>
+<body class="is chameleon">
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Expediente</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="form-container">
+                <div class="page-header">
+                    <h1>Expediente Personal</h1>
+                    <p>Completa tu información. Puedes guardar tu avance y continuar después.</p>
+                </div>
+
+                <form id="expedienteForm">
+                    
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="camera"></i> Fotografía del Trabajador</h3>
+                        <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Tómate una selfie clara, con buena iluminación y sin accesorios.</p>
+                        
+                        <div class="photo-controls" style="max-width: 300px; margin: 0 auto 15px auto;">
+                            <button type="button" class="btn-photo" onclick="triggerCamera('selfie')"><i data-lucide="camera"></i> Cámara</button>
+                            <button type="button" class="btn-photo-sec" onclick="triggerFile('selfie')"><i data-lucide="image-plus"></i> Galería</button>
+                        </div>
+                        <div id="slot-selfie-0" class="photo-slot">
+                            <i data-lucide="user" style="width:40px; height:40px; color:#cbd5e1;"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="user-circle"></i> Datos Personales</h3>
+                        <div class="grid-3">
+                            <div class="form-group"><label class="form-label">Nombre(s)</label><input type="text" class="form-input" id="nombre"></div>
+                            <div class="form-group"><label class="form-label">Apellido Paterno</label><input type="text" class="form-input" id="paterno"></div>
+                            <div class="form-group"><label class="form-label">Apellido Materno</label><input type="text" class="form-input" id="materno"></div>
+                        </div>
+                        <div class="grid-3">
+                            <div class="form-group">
+                                <label class="form-label">Sexo</label>
+                                <select class="form-select" id="sexo">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="Femenino">Femenino</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label class="form-label">Edad</label><input type="number" class="form-input" id="edad"></div>
+                            <div class="form-group"><label class="form-label">Fecha de Nacimiento</label><input type="date" class="form-input" id="fecha_nac"></div>
+                        </div>
+                        <div class="grid-3">
+                            <div class="form-group"><label class="form-label">Lugar de Nacimiento</label><input type="text" class="form-input" id="lugar_nac"></div>
+                            <div class="form-group"><label class="form-label">Nacionalidad</label><input type="text" class="form-input" id="nacionalidad"></div>
+                            <div class="form-group">
+                                <label class="form-label">Estado Civil</label>
+                                <select class="form-select" id="estado_civil">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Soltero(a)">Soltero(a)</option>
+                                    <option value="Casado(a)">Casado(a)</option>
+                                    <option value="Divorciado(a)">Divorciado(a)</option>
+                                    <option value="Unión Libre">Unión Libre</option>
+                                    <option value="Viudo(a)">Viudo(a)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="map-pin"></i> Domicilio y Contacto</h3>
+                        <div class="grid-3">
+                            <div class="form-group"><label class="form-label">Calle</label><input type="text" class="form-input" id="calle"></div>
+                            <div class="form-group"><label class="form-label">Número Ext.</label><input type="text" class="form-input" id="num_ext"></div>
+                            <div class="form-group"><label class="form-label">Número Int.</label><input type="text" class="form-input" id="num_int"></div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group"><label class="form-label">Colonia</label><input type="text" class="form-input" id="colonia"></div>
+                            <div class="form-group"><label class="form-label">Alcaldía o Municipio</label><input type="text" class="form-input" id="municipio"></div>
+                        </div>
+                        <div class="grid-3">
+                            <div class="form-group"><label class="form-label">Ciudad / Población</label><input type="text" class="form-input" id="ciudad"></div>
+                            <div class="form-group"><label class="form-label">Estado</label><input type="text" class="form-input" id="estado"></div>
+                            <div class="form-group"><label class="form-label">C.P.</label><input type="number" class="form-input" id="cp"></div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group"><label class="form-label">Teléfono (Celular)</label><input type="tel" class="form-input" id="telefono"></div>
+                            <div class="form-group"><label class="form-label">Correo Electrónico</label><input type="email" class="form-input" id="correo"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="briefcase"></i> Datos Profesionales y Gubernamentales</h3>
+                        <div class="grid-3">
+                            <div class="form-group"><label class="form-label">RFC</label><input type="text" class="form-input" id="rfc" style="text-transform: uppercase;"></div>
+                            <div class="form-group"><label class="form-label">CURP</label><input type="text" class="form-input" id="curp" style="text-transform: uppercase;"></div>
+                            <div class="form-group"><label class="form-label">No. Seguridad Social (NSS)</label><input type="number" class="form-input" id="nss"></div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group"><label class="form-label">Unidad Médica Familiar (U.M.F.)</label><input type="text" class="form-input" id="umf"></div>
+                            <div class="form-group"><label class="form-label">Número de Consultorio</label><input type="text" class="form-input" id="consultorio"></div>
+                        </div>
+                        <div class="grid-3">
+                            <div class="form-group"><label class="form-label">Escolaridad</label><input type="text" class="form-input" id="escolaridad"></div>
+                            <div class="form-group"><label class="form-label">Cédula Profesional</label><input type="text" class="form-input" id="cedula_prof"></div>
+                            <div class="form-group"><label class="form-label">Colegio al que pertenece</label><input type="text" class="form-input" id="colegio"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="users"></i> Datos Familiares</h3>
+                        <div class="grid-2">
+                            <div class="form-group"><label class="form-label">Nombre del Padre</label><input type="text" class="form-input" id="padre"></div>
+                            <div class="form-group"><label class="form-label">Nombre de la Madre</label><input type="text" class="form-input" id="madre"></div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group"><label class="form-label">Nombre del Cónyuge</label><input type="text" class="form-input" id="conyuge"></div>
+                            <div class="form-group"><label class="form-label">Número de Hijos</label><input type="number" class="form-input" id="hijos" value="0"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="ambulance"></i> En caso de accidente avisar a</h3>
+                        <div class="form-group"><label class="form-label">Nombre Completo</label><input type="text" class="form-input" id="emergencia_nombre"></div>
+                        <div class="grid-2">
+                            <div class="form-group"><label class="form-label">Parentesco</label><input type="text" class="form-input" id="emergencia_parentesco"></div>
+                            <div class="form-group"><label class="form-label">Teléfono</label><input type="tel" class="form-input" id="emergencia_tel"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="landmark"></i> Cuenta Bancaria</h3>
+                        <div class="grid-3">
+                            <div class="form-group">
+                                <label class="form-label">Número de Tarjeta (16 dígitos)</label>
+                                <input type="text" class="form-input" id="num_tarjeta" maxlength="16" placeholder="0000 0000 0000 0000" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Cuenta CLABE (18 dígitos)</label>
+                                <input type="text" class="form-input" id="cuenta_clabe" maxlength="18" placeholder="000000000000000000" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Institución Financiera</label>
+                                <select class="form-select" id="institucion_financiera">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="ABC Capital">ABC Capital</option>
+                                    <option value="Afirme">Afirme</option>
+                                    <option value="Albo">Albo</option>
+                                    <option value="Banca Mifel">Banca Mifel</option>
+                                    <option value="Banco Azteca">Banco Azteca</option>
+                                    <option value="Banco Base">Banco Base</option>
+                                    <option value="BanBajío">BanBajío</option>
+                                    <option value="BanCoppel">BanCoppel</option>
+                                    <option value="Banjército">Banjército</option>
+                                    <option value="Banobras">Banobras</option>
+                                    <option value="Banorte">Banorte</option>
+                                    <option value="Banregio">Banregio</option>
+                                    <option value="Bansi">Bansi</option>
+                                    <option value="BBVA México">BBVA México</option>
+                                    <option value="Broxel">Broxel</option>
+                                    <option value="CIBanco">CIBanco</option>
+                                    <option value="Citibanamex">Citibanamex</option>
+                                    <option value="Clara">Clara</option>
+                                    <option value="Compartamos Banco">Compartamos Banco</option>
+                                    <option value="Consubanco">Consubanco</option>
+                                    <option value="Cuenca">Cuenca</option>
+                                    <option value="Finsus">Finsus</option>
+                                    <option value="Fondeadora">Fondeadora</option>
+                                    <option value="Hey Banco">Hey Banco</option>
+                                    <option value="HSBC México">HSBC México</option>
+                                    <option value="Inbursa">Inbursa</option>
+                                    <option value="Invex Banco">Invex Banco</option>
+                                    <option value="Klar">Klar</option>
+                                    <option value="Kubo Financiero">Kubo Financiero</option>
+                                    <option value="Mercado Pago">Mercado Pago</option>
+                                    <option value="Nu México">Nu México</option>
+                                    <option value="Sabadell">Sabadell</option>
+                                    <option value="Santander">Santander</option>
+                                    <option value="Scotiabank">Scotiabank</option>
+                                    <option value="Spin by Oxxo">Spin by Oxxo</option>
+                                    <option value="Stori">Stori</option>
+                                    <option value="Ualá">Ualá</option>
+                                    <option value="Ve por Más (Bx+)">Ve por Más (Bx+)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="files"></i> Documentos Adjuntos</h3>
+                        <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Toma una foto clara o sube el archivo de cada documento solicitado.</p>
+                        
+                        <div class="docs-grid">
+                            <div class="doc-item"><label>INE (Frente)</label><div id="slot-ine_frente-0" class="photo-slot"><i data-lucide="credit-card" style="color:#cbd5e1;"></i></div><div class="photo-controls" style="margin-top:10px;"><button type="button" class="btn-photo" onclick="triggerCamera('ine_frente')"><i data-lucide="camera"></i></button><button type="button" class="btn-photo-sec" onclick="triggerFile('ine_frente')"><i data-lucide="upload"></i></button></div></div>
+                            <div class="doc-item"><label>INE (Reverso)</label><div id="slot-ine_vuelta-0" class="photo-slot"><i data-lucide="credit-card" style="color:#cbd5e1;"></i></div><div class="photo-controls" style="margin-top:10px;"><button type="button" class="btn-photo" onclick="triggerCamera('ine_vuelta')"><i data-lucide="camera"></i></button><button type="button" class="btn-photo-sec" onclick="triggerFile('ine_vuelta')"><i data-lucide="upload"></i></button></div></div>
+                            <div class="doc-item"><label>Cuenta Bancaria</label><div id="slot-cuenta-0" class="photo-slot"><i data-lucide="landmark" style="color:#cbd5e1;"></i></div><div class="photo-controls" style="margin-top:10px;"><button type="button" class="btn-photo" onclick="triggerCamera('cuenta')"><i data-lucide="camera"></i></button><button type="button" class="btn-photo-sec" onclick="triggerFile('cuenta')"><i data-lucide="upload"></i></button></div></div>
+                            <div class="doc-item"><label>Comp. Domicilio</label><div id="slot-comprobante-0" class="photo-slot"><i data-lucide="home" style="color:#cbd5e1;"></i></div><div class="photo-controls" style="margin-top:10px;"><button type="button" class="btn-photo" onclick="triggerCamera('comprobante')"><i data-lucide="camera"></i></button><button type="button" class="btn-photo-sec" onclick="triggerFile('comprobante')"><i data-lucide="upload"></i></button></div></div>
+                            <div class="doc-item"><label>Cédula</label><div id="slot-cedula-0" class="photo-slot"><i data-lucide="award" style="color:#cbd5e1;"></i></div><div class="photo-controls" style="margin-top:10px;"><button type="button" class="btn-photo" onclick="triggerCamera('cedula')"><i data-lucide="camera"></i></button><button type="button" class="btn-photo-sec" onclick="triggerFile('cedula')"><i data-lucide="upload"></i></button></div></div>
+                            <div class="doc-item"><label>Título</label><div id="slot-titulo-0" class="photo-slot"><i data-lucide="graduation-cap" style="color:#cbd5e1;"></i></div><div class="photo-controls" style="margin-top:10px;"><button type="button" class="btn-photo" onclick="triggerCamera('titulo')"><i data-lucide="camera"></i></button><button type="button" class="btn-photo-sec" onclick="triggerFile('titulo')"><i data-lucide="upload"></i></button></div></div>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <h3 class="section-title"><i data-lucide="pen-tool"></i> Firma del Trabajador</h3>
+                        <div class="signature-container"><canvas id="firma_trabajador" class="signature-pad"></canvas></div>
+                        <button type="button" class="btn-clear" onclick="limpiarFirma()"><i data-lucide="eraser" style="width:14px;"></i> Limpiar Firma</button>
+                        <input type="hidden" id="firma_trabajador_data">
+                    </div>
+
+                    <div class="action-buttons" id="action-buttons-view" style="display: none;">
+                        <button type="button" class="btn-actualizar" onclick="habilitarEdicion()"><i data-lucide="edit"></i> Editar / Actualizar Datos</button>
+                    </div>
+
+                    <div class="action-buttons" id="action-buttons-edit">
+                        <button type="button" class="btn-cancelar" onclick="confirmarCancelar()"><i data-lucide="x-circle"></i> Cancelar</button>
+                        <button type="submit" class="btn-guardar" id="btn-guardar"><i data-lucide="save"></i> Guardar Avance</button>
+                    </div>
+
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <button id="btn-descargar-expediente" class="fab-download" onclick="generarPDFExpediente()">
+        <i data-lucide="file-down"></i> Descargar Expediente
+    </button>
+
+    <input type="file" id="fileInputGlobal" accept="image/*" style="display:none" onchange="processFile(this)">
+    <canvas id="tempCanvas" style="display:none"></canvas>
+
+    <div id="image-viewer-overlay" onclick="closeImageViewer()">
+        <img id="image-viewer-img" src="" alt="Vista previa">
+    </div>
+
+    <div id="camera-overlay" class="modal-overlay" style="flex-direction: column;">
+        <div id="camera-stream"><video id="camera-video" autoplay playsinline></video></div>
+        <div class="camera-controls">
+            <button class="btn-photo-sec" onclick="closeCamera()">Cancelar</button>
+            <button class="btn-photo-sec" onclick="switchCamera()"><i data-lucide="refresh-cw"></i> Girar</button>
+            <button class="btn-photo" onclick="captureFoto()">Tomar Foto</button>
+        </div>
+    </div>
+
+    <div id="modal-confirm" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="alert-triangle" style="color: var(--danger); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p>¿Estás seguro que deseas cancelar? Se descartarán los cambios no guardados y el formulario regresará a su última versión guardada.</p>
+            <div class="modal-buttons">
+                <button class="btn-modal" style="background:var(--bg-color); color:var(--text-main);" onclick="document.getElementById('modal-confirm').style.display='none'">No, continuar</button>
+                <button class="btn-modal" style="background:var(--danger); color:white;" onclick="ejecutarCancelar()">Sí, cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-success" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="check-circle" style="color: var(--success); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p>Tu expediente se ha guardado exitosamente.</p>
+            <button class="btn-modal" style="background:var(--success); color:white; width:100%;" onclick="document.getElementById('modal-success').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+
+    <script>
+        const formCampos = [
+            'nombre', 'paterno', 'materno', 'sexo', 'edad', 'fecha_nac', 'lugar_nac', 
+            'nacionalidad', 'estado_civil', 'calle', 'num_ext', 'num_int', 'colonia', 
+            'municipio', 'ciudad', 'estado', 'cp', 'telefono', 'correo', 'rfc', 'curp', 
+            'nss', 'umf', 'consultorio', 'escolaridad', 'cedula_prof', 'colegio', 
+            'padre', 'madre', 'conyuge', 'hijos', 'emergencia_nombre', 
+            'emergencia_parentesco', 'emergencia_tel', 
+            'num_tarjeta', 'cuenta_clabe', 'institucion_financiera'
+        ];
+
+        // CONFIGURACIÓN DE FIREBASE ACTUALIZADA
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html;
+            lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkExpediente = document.getElementById('link-expediente'); if(linkExpediente) linkExpediente.classList.add('active');
+        });
+
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        const idUsuario = localStorage.getItem('usuario') || 'SinID';
+        const nombreUsuario = localStorage.getItem('nombre') || 'U';
+        document.getElementById('user-initial').innerText = nombreUsuario.charAt(0).toUpperCase();
+
+        let fotos = { selfie: [null], ine_frente: [null], ine_vuelta: [null], cuenta: [null], comprobante: [null], cedula: [null], titulo: [null] };
+        let activeTarget = ''; let currentFacingMode = 'environment'; let currentStream;
+
+        function triggerFile(target) { activeTarget = target; document.getElementById('fileInputGlobal').click(); }
+        function processFile(input) { 
+            if (!input.files || input.files.length === 0) return; 
+            const reader = new FileReader(); 
+            reader.onload = function(e) { 
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas'); let w = img.width, h = img.height; const maxDim = 800; 
+                    if(w > maxDim || h > maxDim) { if(w > h) { h = (h/w)*maxDim; w = maxDim; } else { w = (w/h)*maxDim; h = maxDim; } }
+                    canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+                    fotos[activeTarget][0] = canvas.toDataURL('image/jpeg', 0.7); renderSlots(activeTarget); input.value = ''; 
+                }; img.src = e.target.result;
+            }; reader.readAsDataURL(input.files[0]); 
+        }
+
+        async function triggerCamera(target) { activeTarget = target; currentFacingMode = (target === 'selfie') ? 'user' : 'environment'; await startCamera(); }
+        async function startCamera() {
+            if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+            try { currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } }); document.getElementById('camera-video').srcObject = currentStream; document.getElementById('camera-overlay').style.display = 'flex'; } catch (err) { alert("Permiso denegado o cámara no disponible."); }
+        }
+
+        function switchCamera() { currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment'; startCamera(); }
+        function closeCamera() { if (currentStream) currentStream.getTracks().forEach(t => t.stop()); document.getElementById('camera-overlay').style.display = 'none'; }
+        
+        function captureFoto() { 
+            const canvasT = document.getElementById('tempCanvas'); const video = document.getElementById('camera-video');
+            canvasT.width = video.videoWidth; canvasT.height = video.videoHeight; const ctx = canvasT.getContext('2d');
+            if (currentFacingMode === 'user') { ctx.translate(canvasT.width, 0); ctx.scale(-1, 1); }
+            ctx.drawImage(video, 0, 0, canvasT.width, canvasT.height); ctx.setTransform(1, 0, 0, 1, 0, 0);
+            fotos[activeTarget][0] = canvasT.toDataURL('image/jpeg', 0.8); renderSlots(activeTarget); closeCamera(); 
+        }
+
+        function removeFoto(target) { fotos[target][0] = null; renderSlots(target); }
+
+        function openImageViewer(src) {
+            document.getElementById('image-viewer-img').src = src;
+            document.getElementById('image-viewer-overlay').style.display = 'flex';
+        }
+        function closeImageViewer() {
+            document.getElementById('image-viewer-overlay').style.display = 'none';
+            document.getElementById('image-viewer-img').src = '';
+        }
+
+        function renderSlots(target) {
+            const slot = document.getElementById(`slot-${target}-0`); if(!slot) return;
+            if (fotos[target][0]) { 
+                slot.innerHTML = `<img src="${fotos[target][0]}" onclick="openImageViewer(this.src)"><span class="remove-photo" onclick="event.stopPropagation(); removeFoto('${target}')">&times;</span>`; 
+                slot.style.border = "1px solid var(--border-color)"; 
+            } else { 
+                let icon = 'image'; if(target==='selfie') icon='user'; if(target.includes('ine')) icon='credit-card'; if(target==='cuenta') icon='landmark'; if(target==='comprobante') icon='home'; if(target==='cedula') icon='award'; if(target==='titulo') icon='graduation-cap';
+                slot.innerHTML = `<i data-lucide="${icon}" style="width:40px; height:40px; color:#cbd5e1;"></i>`; slot.style.border = "2px dashed #cbd5e1"; 
+            } 
+            lucide.createIcons();
+        }
+
+        let canvasFirma, ctxFirma;
+        function inicializarFirma() {
+            canvasFirma = document.getElementById('firma_trabajador'); if(!canvasFirma) return;
+            ctxFirma = canvasFirma.getContext('2d'); const rect = canvasFirma.parentElement.getBoundingClientRect();
+            canvasFirma.width = rect.width || 600; canvasFirma.height = 200; ctxFirma.lineWidth = 3; ctxFirma.lineCap = 'round'; ctxFirma.strokeStyle = '#263fa4'; let isDrawing = false;
+            function getPos(e) { const rect = canvasFirma.getBoundingClientRect(); const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY; return { x: cx - rect.left, y: cy - rect.top }; }
+            canvasFirma.addEventListener('mousedown', (e) => { isDrawing = true; const p = getPos(e); ctxFirma.beginPath(); ctxFirma.moveTo(p.x, p.y); });
+            canvasFirma.addEventListener('mousemove', (e) => { if (isDrawing) { const p = getPos(e); ctxFirma.lineTo(p.x, p.y); ctxFirma.stroke(); } });
+            window.addEventListener('mouseup', () => { if(isDrawing) { isDrawing = false; document.getElementById('firma_trabajador_data').value = canvasFirma.toDataURL(); } });
+            canvasFirma.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; const p = getPos(e); ctxFirma.beginPath(); ctxFirma.moveTo(p.x, p.y); }, {passive: false});
+            canvasFirma.addEventListener('touchmove', (e) => { e.preventDefault(); if (isDrawing) { const p = getPos(e); ctxFirma.lineTo(p.x, p.y); ctxFirma.stroke(); } }, {passive: false});
+            window.addEventListener('touchend', () => { if(isDrawing) { isDrawing = false; document.getElementById('firma_trabajador_data').value = canvasFirma.toDataURL(); } });
+        }
+        function limpiarFirma() { ctxFirma.clearRect(0, 0, canvasFirma.width, canvasFirma.height); document.getElementById('firma_trabajador_data').value = ''; }
+        setTimeout(inicializarFirma, 500);
+
+        function habilitarEdicion() {
+            document.getElementById('expedienteForm').classList.remove('is-locked');
+            formCampos.forEach(id => { const el = document.getElementById(id); if(el) el.disabled = false; });
+            document.getElementById('action-buttons-view').style.display = 'none'; 
+            document.getElementById('action-buttons-edit').style.display = 'flex';
+            document.getElementById('btn-descargar-expediente').style.display = 'none';
+        }
+
+        function bloquearEdicion() {
+            document.getElementById('expedienteForm').classList.add('is-locked');
+            formCampos.forEach(id => { const el = document.getElementById(id); if(el) el.disabled = true; });
+            document.getElementById('action-buttons-view').style.display = 'flex'; 
+            document.getElementById('action-buttons-edit').style.display = 'none';
+            document.getElementById('btn-descargar-expediente').style.display = 'flex';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function guardarDatosLocales() {
+            let datos = {}; formCampos.forEach(id => { const el = document.getElementById(id); if(el) datos[id] = el.value; });
+            datos.fotos = fotos; datos.firma = document.getElementById('firma_trabajador_data').value;
+            localStorage.setItem('expediente_guardado_' + idUsuario, JSON.stringify(datos));
+        }
+
+        function cargarDatosGuardados() {
+            const guardado = localStorage.getItem('expediente_guardado_' + idUsuario);
+            if(guardado) {
+                const datos = JSON.parse(guardado);
+                formCampos.forEach(id => { const el = document.getElementById(id); if(el && datos[id]) el.value = datos[id]; });
+                if(datos.fotos) { fotos = datos.fotos; Object.keys(fotos).forEach(target => renderSlots(target)); }
+                if(datos.firma) {
+                    document.getElementById('firma_trabajador_data').value = datos.firma;
+                    const img = new Image(); img.onload = () => { if(ctxFirma) ctxFirma.drawImage(img, 0, 0, canvasFirma.width, canvasFirma.height); }; img.src = datos.firma;
+                }
+                bloquearEdicion();
+            } else {
+                document.getElementById('expedienteForm').reset(); limpiarFirma(); Object.keys(fotos).forEach(t => { fotos[t] = [null]; renderSlots(t); });
+                habilitarEdicion();
+            }
+            lucide.createIcons();
+        }
+
+        document.addEventListener('DOMContentLoaded', cargarDatosGuardados);
+
+        function dataURItoBlob(dataURI) {
+            if(!dataURI) return null; const byteString = atob(dataURI.split(',')[1]); const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length); const ia = new Uint8Array(ab); for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i); return new Blob([ab], {type: mimeString});
+        }
+
+        function confirmarCancelar() { document.getElementById('modal-confirm').style.display = 'flex'; }
+        function ejecutarCancelar() { document.getElementById('modal-confirm').style.display = 'none'; cargarDatosGuardados(); }
+
+        document.getElementById('expedienteForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const btnGuardar = document.getElementById('btn-guardar'); const textoOriginal = btnGuardar.innerHTML;
+            btnGuardar.disabled = true; btnGuardar.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Guardando...'; lucide.createIcons();
+
+            try {
+                let urlsFotos = {}; let urlFirma = null; const targets = Object.keys(fotos);
+                for (let target of targets) {
+                    if (fotos[target][0]) { const ref = storage.ref(`expedientes/${idUsuario}/${target}_${Date.now()}.jpg`); await ref.put(dataURItoBlob(fotos[target][0])); urlsFotos[target] = await ref.getDownloadURL(); } 
+                    else { urlsFotos[target] = null; }
+                }
+
+                const canvasBlanco = document.createElement('canvas'); canvasBlanco.width = canvasFirma.width; canvasBlanco.height = canvasFirma.height;
+                const firmaData = document.getElementById('firma_trabajador_data').value;
+                if (firmaData && firmaData !== canvasBlanco.toDataURL()) { const refFirma = storage.ref(`expedientes/${idUsuario}/firma_${Date.now()}.png`); await refFirma.put(dataURItoBlob(firmaData)); urlFirma = await refFirma.getDownloadURL(); }
+
+                let datosExpediente = { id_trabajador: idUsuario, fecha_actualizacion: firebase.firestore.FieldValue.serverTimestamp(), urls_fotos: urlsFotos, url_firma: urlFirma };
+                formCampos.forEach(id => { const el = document.getElementById(id); if(el) datosExpediente[id] = el.value || ''; });
+
+                await db.collection("expedientes_personal").doc(idUsuario).set(datosExpediente, { merge: true });
+                guardarDatosLocales();
+                document.getElementById('modal-success').style.display = 'flex'; btnGuardar.disabled = false; btnGuardar.innerHTML = textoOriginal; bloquearEdicion(); lucide.createIcons();
+            } catch (err) {
+                console.error("Error guardando en Firebase:", err); alert("Error al guardar. Revisa tu conexión."); btnGuardar.disabled = false; btnGuardar.innerHTML = textoOriginal; lucide.createIcons();
+            }
+        });
+
+        // ==========================================
+        // GENERADOR PDF (Compacto, Alineado y Membretado)
+        // ==========================================
+        function generarPDFExpediente() {
+            const btn = document.getElementById('btn-descargar-expediente');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Generando PDF...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            const v = (id) => document.getElementById(id) && document.getElementById(id).value.trim() !== '' ? document.getElementById(id).value.trim() : '-';
+            const fotoSelfie = fotos['selfie'] && fotos['selfie'][0] ? fotos['selfie'][0] : 'https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg';
+            const firmaData = document.getElementById('firma_trabajador_data').value;
+
+            const pdfWrap = document.createElement('div');
+            pdfWrap.style.width = '100%';
+            pdfWrap.style.boxSizing = 'border-box';
+            pdfWrap.style.backgroundColor = 'white';
+            pdfWrap.style.color = '#1e293b';
+            pdfWrap.style.fontFamily = 'Arial, sans-serif';
+
+            pdfWrap.innerHTML = `
+                <style>
+                    .pdf-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 18px; table-layout: fixed; }
+                    .pdf-table td { padding: 3px 5px; vertical-align: middle; word-wrap: break-word; } /* SIN LINEAS */
+                    .pdf-th { font-weight: bold; color: #1e293b; text-align: left; }
+                    .pdf-section { background: #eef2ff; color: #263fa4; padding: 4px 8px; font-weight: bold; font-size: 12px; margin-bottom: 6px; border-left: 3px solid #263fa4; text-transform: uppercase; }
+                </style>
+                
+                <div style="position: relative; border-bottom: 2px solid #263fa4; padding-bottom: 10px; margin-bottom: 8px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" style="position: absolute; left: 0; top: 0; height: 75px; max-width: 150px; object-fit: contain; border-radius: 4px;" crossorigin="anonymous">
+                    <div style="text-align: center; padding-top: 10px;">
+                        <h1 style="margin: 0; font-size: 28px; color: #263fa4; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">Loreto</h1>
+                        <h2 style="margin: 5px 0 0 0; font-size: 15px; font-weight: 500; color: #475569;">Ingeniería, Construcción, Edificación y Remodelación</h2>
+                    </div>
+                    <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" style="position: absolute; right: 0; top: 0; height: 75px; max-width: 150px; object-fit: contain;" crossorigin="anonymous">
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px; margin-bottom: 15px;">
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #1e293b; letter-spacing: 2px;">EXPEDIENTE PERSONAL</h3>
+                </div>
+
+                <div style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 18px;">
+                    <div style="width: 100px; flex-shrink: 0; text-align: center;">
+                        <div style="width: 100px; height: 120px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-top: 0;">
+                            <img src="${fotoSelfie}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div style="font-size: 8px; color: #64748b; margin-top: 4px; font-weight: bold;">FOTOGRAFÍA</div>
+                    </div>
+                    
+                    <div style="flex: 1;">
+                        <div class="pdf-section">1. DATOS PERSONALES</div>
+                        <table class="pdf-table" style="margin-bottom: 0;">
+                            <colgroup><col style="width:15%"><col style="width:35%"><col style="width:14%"><col style="width:36%"></colgroup>
+                            <tr><td class="pdf-th">Nombre:</td><td colspan="3">${v('nombre')} ${v('paterno')} ${v('materno')}</td></tr>
+                            <tr><td class="pdf-th">Sexo:</td><td>${v('sexo')}</td><td class="pdf-th">Fecha Nac.:</td><td>${v('fecha_nac')}</td></tr>
+                            <tr><td class="pdf-th">Edad:</td><td>${v('edad')} ${v('edad') !== '-' ? 'años' : ''}</td><td class="pdf-th">Lugar Nac.:</td><td>${v('lugar_nac')}</td></tr>
+                            <tr><td class="pdf-th">Nacionalidad:</td><td>${v('nacionalidad')}</td><td class="pdf-th">Edo. Civil:</td><td>${v('estado_civil')}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="pdf-section">2. DOMICILIO Y CONTACTO</div>
+                <table class="pdf-table">
+                    <colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup>
+                    <tr><td class="pdf-th">Calle y Nums:</td><td colspan="3">${v('calle')} #Ext: ${v('num_ext')} #Int: ${v('num_int')}</td></tr>
+                    <tr><td class="pdf-th">Colonia / Mun:</td><td colspan="3">${v('colonia')} / ${v('municipio')}</td></tr>
+                    <tr><td class="pdf-th">Ciudad / Edo:</td><td>${v('ciudad')}, ${v('estado')}</td><td class="pdf-th">C.P.:</td><td>${v('cp')}</td></tr>
+                    <tr><td class="pdf-th">Teléfono:</td><td>${v('telefono')}</td><td class="pdf-th">Correo:</td><td>${v('correo')}</td></tr>
+                </table>
+
+                <div class="pdf-section">3. DATOS PROFESIONALES Y GUBERNAMENTALES</div>
+                <table class="pdf-table">
+                    <colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup>
+                    <tr>
+                        <td class="pdf-th">RFC:</td><td style="text-transform: uppercase;">${v('rfc')}</td>
+                        <td class="pdf-th">CURP:</td><td style="text-transform: uppercase;">${v('curp')}</td>
+                    </tr>
+                    <tr>
+                        <td class="pdf-th">NSS:</td><td>${v('nss')}</td>
+                        <td class="pdf-th">U.M.F.:</td><td>${v('umf')} ${v('consultorio') !== '-' ? '(Cons. ' + v('consultorio') + ')' : ''}</td>
+                    </tr>
+                    <tr>
+                        <td class="pdf-th">Escolaridad:</td><td>${v('escolaridad')}</td>
+                        <td class="pdf-th">Cédula:</td><td>${v('cedula_prof')}</td>
+                    </tr>
+                    <tr>
+                        <td class="pdf-th">Colegio:</td><td colspan="3">${v('colegio')}</td>
+                    </tr>
+                </table>
+
+                <div class="pdf-section">4. CUENTA BANCARIA</div>
+                <table class="pdf-table">
+                    <tr><td class="pdf-th" style="width: 25%;">Institución Financiera:</td><td>${v('institucion_financiera')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%;">Número de Tarjeta:</td><td>${v('num_tarjeta')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%;">Cuenta CLABE:</td><td>${v('cuenta_clabe')}</td></tr>
+                </table>
+
+                <div class="pdf-section">5. FAMILIARES Y EMERGENCIA</div>
+                <table class="pdf-table">
+                    <tr><td class="pdf-th" style="width: 25%;">Nombre del Padre:</td><td>${v('padre')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%;">Nombre de la Madre:</td><td>${v('madre')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%;">Nombre del Cónyuge:</td><td>${v('conyuge')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%;">Número de Hijos:</td><td>${v('hijos')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%; color: #dc2626;">Avisar en emergencia a:</td><td>${v('emergencia_nombre')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%;">Parentesco:</td><td>${v('emergencia_parentesco')}</td></tr>
+                    <tr><td class="pdf-th" style="width: 25%;">Teléfono:</td><td>${v('emergencia_tel')}</td></tr>
+                </table>
+
+                <div style="margin-top: 15px; text-align: center; page-break-inside: avoid;">
+                    ${firmaData && firmaData !== document.createElement('canvas').toDataURL() ? `<img src="${firmaData}" style="height: 60px; object-fit: contain; margin-bottom: 2px;">` : `<div style="height: 60px;"></div>`}
+                    <div style="border-top: 1px solid #000; width: 250px; margin: 0 auto; padding-top: 3px; font-size: 10px; font-weight: bold;">
+                        FIRMA DEL TRABAJADOR
+                    </div>
+                </div>
+                
+                <div style="text-align: center; font-size: 8px; color: #64748b; margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 5px;">
+                    Documento de Expediente Oficial generado el: ${new Date().toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })}
+                </div>
+            `;
+
+            const nombreExport = `${v('nombre')}_${v('paterno')}`.replace(/ /g, '_');
+            
+            // Márgenes simétricos exactos
+            const opt = {
+                margin:       [15, 15, 15, 15], 
+                filename:     `Expediente_${nombreExport}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' } 
+            };
+
+            html2pdf().set(opt).from(pdfWrap).save().then(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                lucide.createIcons();
+            }).catch(err => {
+                console.error("Error PDF:", err);
+                alert("Hubo un error al generar el PDF. Revisa tu conexión a internet.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                lucide.createIcons();
+            });
+        }
+    </script>
+</body>
+</html>
