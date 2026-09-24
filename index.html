@@ -4,9 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inicio de Sesión - Loreto Ingeniería</title>
+
+    <!-- PWA & Web Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#058EA6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/Q7gpgrtS/chiquita.png">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <!-- SDKs de Firebase añadidos aquí -->
+    <!-- SDKs de Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
@@ -15,7 +23,7 @@
             height: 100%;
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #263fa4; /* Fondo azul original */
+            background-color: #263fa4;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -195,7 +203,16 @@
     </div>
 
     <script>
-        // Configuración de Firebase actualizada
+        // REGISTRO DEL SERVICE WORKER PARA PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado correctamente:', reg.scope))
+                    .catch(err => console.error('Error al registrar Service Worker:', err));
+            });
+        }
+
+        // Configuración de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
             authDomain: "loretoapp-2ca14.firebaseapp.com",
@@ -234,7 +251,6 @@
             btnLogin.disabled = true;
             mensajeDiv.innerText = "";
             
-            // LA URL DE TU SCRIPT DE GOOGLE
             var scriptURL = "https://script.google.com/macros/s/AKfycbyQBuAUlC0bc8dYgUHgwbTNOa7ut6dKB_Ls6sqgDbKyHF51zKofE9cQ7rWp_SH2X9k/exec";
 
             fetch(scriptURL, {
@@ -253,12 +269,10 @@
                     mensajeDiv.style.color = "#188038";
                     mensajeDiv.innerText = "¡Bienvenido! Redirigiendo...";
                     
-                    // Guardamos en LocalStorage
                     localStorage.setItem('usuario', user); 
                     localStorage.setItem('privilegio', respuesta.privilegio);
                     localStorage.setItem('nombre', respuesta.nombre); 
                     
-                    // REGISTRO AUTOMÁTICO EN FIREBASE
                     db.collection("usuarios").doc(user).set({
                         nombre: respuesta.nombre, 
                         usuario: user
