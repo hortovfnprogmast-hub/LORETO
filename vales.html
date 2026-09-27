@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Historial de Vales | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 98%; margin: 0 auto; padding-bottom: 50px; }
+
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        .filters-bar { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color); display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;}
+        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+        .filter-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+        .form-input { padding: 0 16px; height: 42px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; color: var(--text-main); width: 100%; box-sizing: border-box; background: var(--bg-color); }
+        .form-input:focus { background: white; outline: none; border-color: var(--primary-blue); }
+
+        .btn-primary { background: var(--primary-blue); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-primary:hover { background: #1a2a6e; }
+
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-color); background: white;}
+        .data-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        .data-table th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 14px 15px; text-align: left; border-bottom: 2px solid var(--border-color); }
+        .data-table td { padding: 14px 15px; border-bottom: 1px solid var(--border-color); font-size: 13px; color: var(--text-main); vertical-align: middle; }
+        .data-table tbody tr:hover { background-color: #f8fafc; }
+        
+        .btn-ver-pdf { background: var(--danger); color: white; border: none; height: 32px; padding: 0 15px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;}
+        .btn-ver-pdf:hover { background: #b91c1c; }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+        .badge { background: var(--light-blue); color: var(--primary-blue); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 12px;}
+        .badge-obra { background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-small { background: white; border-radius: 16px; padding: 30px; width: 90%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transform: translateY(-20px); transition: all 0.3s; }
+        .modal-overlay.active .modal-small { transform: translateY(0); }
+        .modal-small p { font-size: 15px; color: var(--text-main); margin-bottom: 25px; line-height: 1.5; font-weight: 600; }
+        .modal-btn { border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; transition: background 0.2s; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Vales Generados</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">A</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Historial de Vales de Equipo</h1>
+                    <p>Consulta los vales de préstamo generados. Utiliza los filtros para buscar por fecha, importe o cantidad de equipos.</p>
+                </div>
+
+                <div class="filters-bar">
+                    <div class="filter-group">
+                        <label class="filter-label">Fecha Inicio</label>
+                        <input type="date" class="form-input" id="filtro-fecha-inicio">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Fecha Término</label>
+                        <input type="date" class="form-input" id="filtro-fecha-fin">
+                    </div>
+                    <div class="filter-group" style="flex: 2;">
+                        <label class="filter-label">Buscar (Equipos, Importe, Trabajador, Obra o Número de Vale)</label>
+                        <input type="text" class="form-input" id="filtro-busqueda" placeholder="Ej. VALE-5, JUAN, OBRA, 200.00, 15...">
+                    </div>
+                    <button class="btn-primary" onclick="renderTabla()" style="height: 42px; padding: 0 24px; display: inline-flex; align-items: center; gap: 8px;">
+                        <i data-lucide="search"></i> Buscar
+                    </button>
+                </div>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p>Cargando historial de vales...</p>
+                </div>
+
+                <div class="table-responsive" id="tabla-container" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Número de Vale</th>
+                                <th>Obra</th>
+                                <th>Trabajador</th>
+                                <th>Fecha</th>
+                                <th class="text-center">Equipos</th>
+                                <th class="text-right">Valor Total</th>
+                                <th class="text-center" style="width: 120px;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-alerta" class="modal-overlay">
+        <div class="modal-small">
+            <i data-lucide="info" id="modal-icon" style="color: var(--primary-blue); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-mensaje">Mensaje</p>
+            <button class="modal-btn" style="background:var(--primary-blue); color:white;" onclick="cerrarAlerta()">Aceptar</button>
+        </div>
+    </div>
+
+    <div id="contenedor-pdf-oculto" style="display: none; position: absolute; top: -9999px; left: -9999px;">
+        <div id="plantilla-loreto-pdf" style="width: 210mm; background: white; padding: 15mm; font-family: 'Inter', Arial, sans-serif; box-sizing: border-box; color: #1e293b;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #263fa4; padding-bottom: 15px; margin-bottom: 25px;">
+                <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" style="height: 50px;" crossorigin="anonymous">
+                <div style="text-align: center; color: #263fa4;">
+                    <h2 style="margin: 0; font-size: 20px; font-weight: 800;">LORETO - VALE DE PRÉSTAMO DE EQUIPO</h2>
+                    <p style="margin: 5px 0 0 0; font-size: 11px; font-weight: bold;">INGENIERIA, CONSTRUCCION, EDIFICACION Y REMODELACION</p>
+                </div>
+                <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" style="height: 50px;" crossorigin="anonymous">
+            </div>
+            
+            <!-- INFO VALE + OBRA EN PDF -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; background: #eef2ff; padding: 10px; border-radius: 8px;">
+                <div><strong>Número de Vale:</strong> <span id="pdf-ticket-num" style="color: #263fa4;"></span></div>
+                <div><strong>Obra:</strong> <span id="pdf-ticket-obra" style="color: #263fa4;"></span></div>
+                <div><strong>Fecha:</strong> <span id="pdf-ticket-fecha"></span></div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px;">
+                <thead>
+                    <tr style="background-color: #263fa4; color: white;">
+                        <th style="padding: 10px; text-align: left;">#</th>
+                        <th style="padding: 10px; text-align: left;">CLAVE</th>
+                        <th style="padding: 10px; text-align: left;">CONCEPTO</th>
+                        <th style="padding: 10px; text-align: right;">CANT.</th>
+                        <th style="padding: 10px; text-align: right;">VALOR U.</th>
+                        <th style="padding: 10px; text-align: right;">VALOR TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-ticket-body"></tbody>
+            </table>
+
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 30px; font-size: 16px; font-weight: bold; border-top: 2px solid #e2e8f0; padding-top: 15px;">
+                <div style="font-size: 14px; color: #64748b;">Equipos: <span id="pdf-ticket-arts">0</span></div>
+                <div style="color: #263fa4;">Total: $<span id="pdf-ticket-total">0.00</span></div>
+            </div>
+
+            <div style="margin-top: 40px; text-align: center; font-size: 14px; color: #1e293b;">
+                <p style="margin: 0 0 40px 0; font-weight: bold;">Trabajador que genera:</p>
+                <div style="width: 250px; border-bottom: 1px solid #1e293b; margin: 0 auto;"></div>
+                <p style="margin: 5px 0 0 0; text-transform: uppercase; font-weight: bold;" id="pdf-ticket-trabajador"></p>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Configuración de Firebase actualizada
+    const firebaseConfig = {
+        apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+        authDomain: "loretoapp-2ca14.firebaseapp.com",
+        projectId: "loretoapp-2ca14",
+        storageBucket: "loretoapp-2ca14.firebasestorage.app",
+        messagingSenderId: "794212467801",
+        appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+    };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.firestore();
+
+    let dataTickets = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkTickets = document.getElementById('link-vales'); if(linkTickets) linkTickets.classList.add('active');
+        });
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        const trabajadorLogueado = localStorage.getItem('usuarioActivo') || localStorage.getItem('nombreTrabajador') || 'JOVANI MARTINEZ';
+        document.getElementById('user-initial').innerText = trabajadorLogueado.charAt(0);
+
+        cargarTickets();
+    });
+
+    function formatMoney(amount) { return parseFloat(amount).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'}); }
+
+    async function cargarTickets() {
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('tabla-container').style.display = 'none';
+        
+        try {
+            const snap = await db.collection("vales").orderBy("fecha_creacion", "desc").get();
+            dataTickets = [];
+            snap.forEach(doc => { dataTickets.push({ id: doc.id, ...doc.data() }); });
+            renderTabla();
+        } catch (e) { 
+            console.error("Error al cargar vales", e); 
+            mostrarAlerta("Error al cargar el historial de vales. Asegúrate de tener conexión.");
+        }
+        
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('tabla-container').style.display = 'block';
+    }
+
+    function renderTabla() {
+        const tbody = document.getElementById('tabla-body');
+        tbody.innerHTML = '';
+        
+        const fInicio = document.getElementById('filtro-fecha-inicio').value;
+        const fFin = document.getElementById('filtro-fecha-fin').value;
+        const fBuscar = document.getElementById('filtro-busqueda').value.toLowerCase();
+
+        let filtrados = dataTickets.filter(t => {
+            if (fInicio || fFin) {
+                if(!t.fecha_creacion) return false;
+                const fechaTicket = t.fecha_creacion.toDate();
+                fechaTicket.setHours(0,0,0,0);
+                
+                if (fInicio) {
+                    const dInicio = new Date(fInicio + 'T00:00:00');
+                    if (fechaTicket < dInicio) return false;
+                }
+                if (fFin) {
+                    const dFin = new Date(fFin + 'T00:00:00');
+                    if (fechaTicket > dFin) return false;
+                }
+            }
+
+            if (fBuscar) {
+                const numTicket = (t.numero || "").toLowerCase();
+                const trabajadorStr = (t.trabajador || "").toLowerCase();
+                const obraStr = (t.obra || "").toLowerCase();
+                const totalArt = (t.total_articulos || 0).toString();
+                const totalImp = (t.total_importe || 0).toString();
+                
+                if (!numTicket.includes(fBuscar) && !trabajadorStr.includes(fBuscar) && !obraStr.includes(fBuscar) && !totalArt.includes(fBuscar) && !totalImp.includes(fBuscar)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        if(filtrados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="padding: 30px; text-align:center; color: var(--text-muted);">No se encontraron vales con los filtros actuales.</td></tr>`;
+            return;
+        }
+
+        filtrados.forEach((row, index) => {
+            let tr = document.createElement('tr');
+            
+            let numIndice = index + 1;
+            let obra = row.obra || 'SIN OBRA';
+            let trabajador = row.trabajador || 'NO REGISTRADO';
+            let fechaStr = row.fecha_str || 'Sin Fecha';
+            let articulos = row.total_articulos || 0;
+            let importe = row.total_importe || 0;
+
+            let html = `
+                <td style="font-weight: 800; color: var(--text-muted);">${numIndice}</td>
+                <td><span class="badge">${row.numero}</span></td>
+                <td><span class="badge-obra">${obra}</span></td>
+                <td style="font-weight: 600; text-transform: uppercase;">${trabajador}</td>
+                <td>${fechaStr}</td>
+                <td class="text-center" style="font-weight: 700;">${articulos}</td>
+                <td class="text-right" style="font-weight: 800; color: #16a34a;">${formatMoney(importe)}</td>
+                <td class="text-center">
+                    <button class="btn-ver-pdf" onclick="verPDF('${row.id}')" id="btn-pdf-${row.id}">
+                        <i data-lucide="search"></i> Ver
+                    </button>
+                </td>
+            `;
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+        });
+        
+        lucide.createIcons();
+    }
+
+    async function verPDF(ticketId) {
+        const ticket = dataTickets.find(t => t.id === ticketId);
+        if(!ticket || !ticket.detalle) {
+            mostrarAlerta("No hay detalles guardados para generar este PDF.");
+            return;
+        }
+
+        const btn = document.getElementById(`btn-pdf-${ticketId}`);
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i>';
+        btn.disabled = true;
+        lucide.createIcons();
+
+        document.getElementById('pdf-ticket-num').innerText = ticket.numero;
+        document.getElementById('pdf-ticket-fecha').innerText = ticket.fecha_str;
+        document.getElementById('pdf-ticket-obra').innerText = ticket.obra || 'SIN OBRA';
+        document.getElementById('pdf-ticket-arts').innerText = ticket.total_articulos;
+        document.getElementById('pdf-ticket-trabajador').innerText = ticket.trabajador || 'NO REGISTRADO';
+        
+        const tbody = document.getElementById('pdf-ticket-body');
+        tbody.innerHTML = '';
+        
+        ticket.detalle.forEach((item, index) => {
+            const bg = index % 2 === 0 ? 'background-color: #f8fafc;' : 'background-color: white;';
+            tbody.innerHTML += `
+                <tr style="${bg} border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px;">${index + 1}</td>
+                    <td style="padding: 10px;">${item.clave || 'S/C'}</td>
+                    <td style="padding: 10px;">${item.concepto}</td>
+                    <td style="padding: 10px; text-align: right;">${item.cantidad}</td>
+                    <td style="padding: 10px; text-align: right;">$${item.precio.toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: right; font-weight: bold;">$${item.importe.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        
+        document.getElementById('pdf-ticket-total').innerText = ticket.total_importe.toFixed(2);
+
+        const contenedorOculto = document.getElementById('contenedor-pdf-oculto');
+        contenedorOculto.style.display = 'block'; 
+        const elemento = document.getElementById('plantilla-loreto-pdf');
+
+        const opciones = {
+            margin:       0,
+            filename:     `${ticket.numero}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opciones).from(elemento).save().then(() => {
+            contenedorOculto.style.display = 'none';
+            btn.innerHTML = oldHtml;
+            btn.disabled = false;
+            lucide.createIcons();
+        }).catch(err => {
+            console.error("Error al generar PDF: ", err);
+            contenedorOculto.style.display = 'none';
+            mostrarAlerta("Error al visualizar el PDF.");
+            btn.innerHTML = oldHtml;
+            btn.disabled = false;
+            lucide.createIcons();
+        });
+    }
+
+    function mostrarAlerta(mensaje) {
+        document.getElementById('modal-mensaje').innerText = mensaje;
+        document.getElementById('modal-alerta').classList.add('active');
+    }
+    function cerrarAlerta() { document.getElementById('modal-alerta').classList.remove('active'); }
+</script>
+</body>
+</html>
