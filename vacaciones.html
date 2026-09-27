@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mis Vacaciones | Loreto Ingeniería</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* --- HEADER Y LAYOUT --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 1050px; margin: 0 auto; padding-bottom: 50px; }
+        
+        .page-header { margin-bottom: 30px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        /* --- DASHBOARD VACACIONES --- */
+        .summary-dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .summary-card { background: white; padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.04); text-align: center; position: relative; }
+        .summary-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+        .summary-value { font-size: 36px; font-weight: 900; color: var(--text-main); }
+        .summary-value.blue { color: var(--primary-blue); }
+        .summary-value.green { color: var(--success); }
+        .summary-value.red { color: var(--danger); }
+        
+        .auth-time { font-size: 10px; color: var(--success); font-weight: 600; margin-top: 5px; }
+
+        /* --- MENSAJE BLOQUEO --- */
+        .bloqueo-msg { background: #fffbeb; border: 1px solid #fde68a; padding: 30px; border-radius: 16px; text-align: center; margin-bottom: 30px; }
+        .bloqueo-msg h2 { color: #d97706; margin: 0 0 10px 0; font-size: 20px; }
+        .bloqueo-msg p { color: #92400e; margin: 0; font-size: 15px; line-height: 1.5; }
+
+        /* --- PERIODOS --- */
+        .periods-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+        @media (max-width: 768px) { .summary-dashboard { grid-template-columns: 1fr; } .periods-grid { grid-template-columns: 1fr; } }
+
+        .period-card { background: white; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.04); overflow: hidden; display: flex; flex-direction: column; }
+        .period-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-color); }
+        .period-title { font-size: 16px; font-weight: 800; color: var(--primary-blue); display: flex; align-items: center; gap: 8px;}
+        .period-body { padding: 20px; flex-grow: 1; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+        .form-input { width: 100%; padding: 10px 15px; background-color: var(--bg-color); border: 1px solid transparent; border-radius: 10px; font-size: 14px; color: var(--text-main); box-sizing: border-box; outline: none; transition: all 0.2s; font-family: inherit; }
+        .form-input:focus { background: white; border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(38,63,164,0.1); }
+        .form-input:disabled { cursor: not-allowed; opacity: 0.7; background-color: #e2e8f0; }
+
+        .days-count { font-size: 14px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 8px; padding: 12px; background: var(--bg-color); border-radius: 8px; margin-bottom: 0px;}
+
+        .period-footer { padding: 16px 20px; border-top: 1px solid var(--border-color); background: #fff; text-align: right; }
+        .btn-enviar { background: var(--primary-blue); color: white; border: none; height: 40px; padding: 0 20px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s; width: 100%; justify-content: center;}
+        .btn-enviar:hover { background: #1a2a6e; }
+        .btn-enviar:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        /* --- BADGES --- */
+        .status-badge { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; gap: 6px;}
+        .status-badge.vacio { background: #e2e8f0; color: #64748b; }
+        .status-badge.pendiente { background: #fef3c7; color: #d97706; }
+        .status-badge.aprobado { background: #dcfce7; color: #166534; }
+        .status-badge.rechazado { background: #fee2e2; color: #b91c1c; }
+
+        .admin-feedback { background: #fee2e2; border: 1px solid #fca5a5; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #991b1b; }
+        .admin-feedback.success { background: #dcfce7; border-color: #86efac; color: #166534; }
+        .admin-feedback strong { display: block; margin-bottom: 4px; }
+
+        /* --- MODALES --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 350px; text-align: center; animation: popIn 0.3s; }
+        .modal-content p { font-size: 15px; color: var(--text-main); margin-bottom: 20px; font-weight: 600; line-height: 1.5; }
+        .btn-modal { width: 100%; padding: 12px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; }
+        .btn-modal:hover { opacity: 0.9; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Portal de Personal</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Solicitud de Vacaciones</h1>
+                    <p>Programa tus días de descanso seleccionando las fechas en los periodos disponibles.</p>
+                </div>
+
+                <div class="summary-dashboard">
+                    <div class="summary-card">
+                        <div class="summary-title">DÍAS AUTORIZADOS</div>
+                        <div class="summary-value" id="lbl-generados">0</div>
+                        <div class="auth-time" id="lbl-time-auth"></div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-title">DÍAS (SOLICITADOS)</div>
+                        <div class="summary-value blue" id="lbl-usados">0</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-title">SALDO DISPONIBLE</div>
+                        <div class="summary-value green" id="lbl-saldo">0</div>
+                    </div>
+                </div>
+
+                <div id="loader" class="loader-container">
+                    <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                    <p>Cargando información...</p>
+                </div>
+
+                <div id="msg-bloqueo" class="bloqueo-msg" style="display: none;">
+                    <i data-lucide="clock-4" style="width: 48px; height: 48px; color: #d97706; margin-bottom: 10px;"></i>
+                    <h2>Aún no cuentas con días autorizados</h2>
+                    <p>Por favor, mantente atento a que el área de Contabilidad asigne y autorice tu saldo de vacaciones correspondiente para poder programar tus descansos.</p>
+                </div>
+
+                <div class="periods-grid" id="periods-container" style="display: none;">
+                    </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-success" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="check-circle" style="color: var(--success); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-success-msg">Solicitud enviada exitosamente.</p>
+            <button class="btn-modal" style="background:var(--success); color:white;" onclick="document.getElementById('modal-success').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+
+    <div id="modal-error" class="modal-overlay">
+        <div class="modal-content">
+            <i data-lucide="alert-triangle" style="color: var(--danger); width: 48px; height: 48px; margin-bottom: 15px;"></i>
+            <p id="modal-error-msg">Hubo un error.</p>
+            <button class="btn-modal" style="background:var(--danger); color:white;" onclick="document.getElementById('modal-error').style.display='none'">Aceptar</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Firebase actualizada
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        const idUsuario = localStorage.getItem('usuario') || 'SinID';
+        const nombreUsuario = localStorage.getItem('nombre') || 'Usuario';
+        document.getElementById('user-initial').innerText = nombreUsuario.charAt(0).toUpperCase();
+
+        let diasGenerados = 0; 
+
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkVacaciones = document.getElementById('link-vacaciones'); if(linkVacaciones) linkVacaciones.classList.add('active');
+        });
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        function mostrarAlerta(msg) { document.getElementById('modal-error-msg').innerText = msg; document.getElementById('modal-error').style.display = 'flex'; lucide.createIcons(); }
+        function mostrarExito(msg) { document.getElementById('modal-success-msg').innerText = msg; document.getElementById('modal-success').style.display = 'flex'; lucide.createIcons(); }
+
+        function renderPeriodosVacio() {
+            const container = document.getElementById('periods-container');
+            container.innerHTML = '';
+            const nombres = ["1er Periodo", "2do Periodo", "3er Periodo", "4to Periodo"];
+
+            for(let i=1; i<=4; i++) {
+                container.innerHTML += `
+                    <div class="period-card" id="card-periodo-${i}">
+                        <div class="period-header">
+                            <div class="period-title"><i data-lucide="calendar" style="width:18px;"></i> ${nombres[i-1]}</div>
+                            <div id="badge-${i}" class="status-badge vacio">Sin solicitar</div>
+                        </div>
+                        <div class="period-body">
+                            <div id="feedback-${i}" class="admin-feedback" style="display:none;"></div>
+                            <div style="display:flex; gap:16px;">
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label">Fecha Inicio</label>
+                                    <input type="date" class="form-input" id="inicio-${i}" onchange="calcularDiasPeriodo(${i})">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label">Fecha Fin</label>
+                                    <input type="date" class="form-input" id="fin-${i}" onchange="calcularDiasPeriodo(${i})">
+                                </div>
+                            </div>
+                            <div class="days-count">
+                                <i data-lucide="clock" style="width:16px; color: var(--primary-blue);"></i> 
+                                Días que ocupará este periodo: <strong id="dias-${i}" style="color:var(--primary-blue); font-size:16px; margin-left: 5px;">0</strong>
+                            </div>
+                        </div>
+                        <div class="period-footer">
+                            <button type="button" class="btn-enviar" id="btn-save-${i}" onclick="solicitarPeriodo(${i})">
+                                Solicitar Periodo
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        function haySuperposicion(numToCheck, startDate, endDate) {
+            const s1 = new Date(startDate).getTime();
+            const e1 = new Date(endDate).getTime();
+
+            for(let i=1; i<=4; i++) {
+                if(i === numToCheck) continue;
+                
+                const otherStart = document.getElementById(`inicio-${i}`).value;
+                const otherEnd = document.getElementById(`fin-${i}`).value;
+                
+                if(otherStart && otherEnd) {
+                    const s2 = new Date(otherStart).getTime();
+                    const e2 = new Date(otherEnd).getTime();
+                    
+                    if(s1 <= e2 && e1 >= s2) { return true; }
+                }
+            }
+            return false;
+        }
+
+        function calcularDiasPeriodo(num) {
+            const d1 = document.getElementById(`inicio-${num}`).value;
+            const d2 = document.getElementById(`fin-${num}`).value;
+            let dias = 0;
+            if(d1 && d2) {
+                const f1 = new Date(d1); const f2 = new Date(d2);
+                if(f2 >= f1) { dias = Math.ceil(Math.abs(f2 - f1) / (1000 * 60 * 60 * 24)) + 1; }
+            }
+            document.getElementById(`dias-${num}`).innerText = dias;
+            actualizarTotales();
+            return dias;
+        }
+
+        function actualizarTotales() {
+            document.getElementById('lbl-generados').innerText = diasGenerados;
+            let usados = 0;
+            for(let i=1; i<=4; i++) { usados += parseInt(document.getElementById(`dias-${i}`).innerText) || 0; }
+            document.getElementById('lbl-usados').innerText = usados;
+            
+            let saldo = diasGenerados - usados;
+            const lblSaldo = document.getElementById('lbl-saldo');
+            lblSaldo.innerText = saldo;
+            lblSaldo.className = "summary-value " + (saldo < 0 ? "red" : "green");
+        }
+
+        function bloquearTodosLosPeriodos() {
+            for(let i=1; i<=4; i++) {
+                document.getElementById(`inicio-${i}`).disabled = true;
+                document.getElementById(`fin-${i}`).disabled = true;
+                const btn = document.getElementById(`btn-save-${i}`);
+                if(btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i data-lucide="lock" style="width:16px;"></i> Periodos Completos';
+                }
+            }
+            lucide.createIcons();
+        }
+
+        async function cargarMisVacaciones() {
+            try {
+                const docRef = db.collection("vacaciones_control").doc(idUsuario);
+                const docSnap = await docRef.get();
+                
+                if(docSnap.exists) {
+                    const data = docSnap.data();
+                    diasGenerados = data.dias_generados || 0;
+                    
+                    if(data.fecha_autorizacion) {
+                        const dateAut = data.fecha_autorizacion.toDate ? data.fecha_autorizacion.toDate() : new Date(data.fecha_autorizacion);
+                        document.getElementById('lbl-time-auth').innerText = 'Autorizado el: ' + dateAut.toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'});
+                    }
+
+                    if (diasGenerados === 0) {
+                        document.getElementById('periods-container').style.display = 'none';
+                        document.getElementById('msg-bloqueo').style.display = 'block';
+                    } else {
+                        document.getElementById('periods-container').style.display = 'grid';
+                        document.getElementById('msg-bloqueo').style.display = 'none';
+                    }
+
+                    let periodosLlenos = 0;
+                    let periodosRechazados = 0;
+                    
+                    for(let i=1; i<=4; i++) {
+                        const p = data[`periodo_${i}`];
+                        if(p && p.inicio) {
+                            periodosLlenos++;
+                            document.getElementById(`inicio-${i}`).value = p.inicio;
+                            document.getElementById(`fin-${i}`).value = p.fin;
+                            document.getElementById(`dias-${i}`).innerText = p.dias;
+                            
+                            const badge = document.getElementById(`badge-${i}`);
+                            const btn = document.getElementById(`btn-save-${i}`);
+                            const in1 = document.getElementById(`inicio-${i}`);
+                            const in2 = document.getElementById(`fin-${i}`);
+                            const feed = document.getElementById(`feedback-${i}`);
+
+                            // Ajuste: Incorporar Fecha y Hora en el estatus
+                            let fechaHoraTexto = p.fecha_solicitud ? new Date(p.fecha_solicitud).toLocaleString('es-MX') : '';
+
+                            if(p.estado === 'pendiente') {
+                                badge.className = "status-badge pendiente"; 
+                                badge.innerHTML = `<i data-lucide="clock" style="width:14px;"></i> Pendiente: ${fechaHoraTexto}`;
+                                btn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;"></i> Actualizar Solicitud';
+                            } else if (p.estado === 'aprobado' || p.estado === 'modificado') {
+                                badge.className = "status-badge aprobado"; 
+                                badge.innerHTML = `<i data-lucide="check-circle" style="width:14px;"></i> ` + (p.estado === 'modificado' ? `Aprobado (Mod.) ${fechaHoraTexto}` : `Aprobado ${fechaHoraTexto}`);
+                                in1.disabled = true; in2.disabled = true;
+                                btn.style.display = 'none'; // Bloqueado permanentemente
+                                
+                                if(p.estado === 'modificado') {
+                                    feed.style.display = 'block';
+                                    feed.className = 'admin-feedback success';
+                                    feed.innerHTML = '<strong>Fechas Autorizadas:</strong> El contador ha ajustado y autorizado tus fechas definitivas.';
+                                }
+                            } else if (p.estado === 'rechazado') {
+                                periodosRechazados++;
+                                badge.className = "status-badge rechazado"; 
+                                badge.innerHTML = `<i data-lucide="x-circle" style="width:14px;"></i> Rechazado: ${fechaHoraTexto}`;
+                                btn.innerHTML = '<i data-lucide="refresh-cw" style="width:16px;"></i> Actualizar Solicitud';
+                                feed.style.display = 'block';
+                                feed.className = 'admin-feedback';
+                                feed.innerHTML = '<strong>Periodo Rechazado:</strong> Por favor, selecciona nuevas fechas y vuelve a solicitar.';
+                            }
+                        }
+                    }
+                    actualizarTotales();
+
+                    // Bloquear si completó 4 y no hay rechazados
+                    if(periodosLlenos === 4 && periodosRechazados === 0) {
+                        bloquearTodosLosPeriodos();
+                    }
+
+                    lucide.createIcons();
+                } else {
+                    document.getElementById('periods-container').style.display = 'none';
+                    document.getElementById('msg-bloqueo').style.display = 'block';
+                    actualizarTotales(); 
+                }
+            } catch (e) { console.error("Error", e); }
+            
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        async function solicitarPeriodo(num) {
+            const d1 = document.getElementById(`inicio-${num}`).value;
+            const d2 = document.getElementById(`fin-${num}`).value;
+            const dias = calcularDiasPeriodo(num);
+
+            if(!d1 || !d2) { mostrarAlerta("Debes seleccionar fecha de inicio y término."); return; }
+            if(dias <= 0) { mostrarAlerta("La fecha de fin no puede ser menor a la de inicio."); return; }
+            
+            if(haySuperposicion(num, d1, d2)) {
+                mostrarAlerta("¡Cuidado! Las fechas que seleccionaste se cruzan o duplican con las de otro periodo ya solicitado. No puedes duplicar tus fechas y días.");
+                return;
+            }
+
+            const btn = document.getElementById(`btn-save-${num}`);
+            const oldHtml = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Guardando...'; lucide.createIcons();
+
+            try {
+                const docRef = db.collection("vacaciones_control").doc(idUsuario);
+                const isoDate = new Date().toISOString();
+                
+                const updateData = {
+                    nombre: nombreUsuario,
+                    dias_generados: diasGenerados,
+                    ultima_actualizacion: isoDate
+                };
+                
+                updateData[`periodo_${num}`] = { inicio: d1, fin: d2, dias: dias, estado: 'pendiente', fecha_solicitud: isoDate };
+
+                await docRef.set(updateData, { merge: true });
+                mostrarExito(`Tus fechas han sido enviadas y están en revisión.`);
+                
+                document.getElementById('loader').style.display = 'flex';
+                document.getElementById('periods-container').style.display = 'none';
+                cargarMisVacaciones(); 
+            } catch(e) {
+                console.error(e);
+                mostrarAlerta("Ocurrió un problema al enviar la solicitud. Revisa tu conexión.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+                lucide.createIcons();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPeriodosVacio();
+            cargarMisVacaciones();
+        });
+    </script>
+</body>
+</html>
