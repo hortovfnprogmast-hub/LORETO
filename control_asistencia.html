@@ -14,13 +14,20 @@
 
     <style>
         :root {
-            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
-            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
-            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+            --primary-blue: #263fa4;
+            --light-blue: #eef2ff;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #dc2626;
+            --success: #10b981;
+            --warning: #f59e0b;
         }
 
         body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
+        /* --- HEADER Y LAYOUT --- */
         .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
         .header-left { display: flex; align-items: center; gap: 15px; }
         .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
@@ -30,8 +37,24 @@
 
         .main-layout { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
-        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
 
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; }
+            .sidebar.open { transform: translateX(0); }
+            .header-title { display: none; }
+        }
+
+        /* --- SIDEBAR NAV (estilos del menú lateral) --- */
+        .sidebar-nav { padding: 15px 10px; }
+        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 15px; padding-bottom: 0; display: block; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
+        .nav-item.active i { color: var(--primary-blue); }
+
+        /* --- CONTENIDO --- */
         .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .container { max-width: 1200px; margin: 0 auto; padding-bottom: 50px; }
 
@@ -47,12 +70,12 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* CARDS DE TRABAJADORES (General) */
+        /* CARDS DE TRABAJADORES */
         .worker-card { background: white; border-radius: 12px; border: 1px solid var(--border-color); padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
         .worker-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
         .worker-name { font-size: 16px; font-weight: 800; color: var(--primary-blue); display: flex; align-items: center; gap: 10px; }
         .worker-name i { width: 20px; height: 20px; }
-        .btn-save-worker { background: var(--primary-blue); color: white; border: none; height: 36px; padding: 0 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; }
+        .btn-save-worker { background: var(--primary-blue); color: white; border: none; height: 36px; padding: 0 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; font-family: inherit; }
         .btn-save-worker:hover { background: #1a2a6e; }
         .btn-save-worker:disabled { background: #cbd5e1; cursor: not-allowed; }
 
@@ -69,13 +92,13 @@
         .iva-check input { width: 18px; height: 18px; cursor: pointer; }
         .iva-check label { font-size: 12px; font-weight: 700; color: var(--text-main); cursor: pointer; }
 
-        /* FILTROS (Particular) */
+        /* FILTROS */
         .filters-bar { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color); display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
         .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
         .btn-primary { background: var(--primary-blue); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; height: 42px; padding: 0 24px; display: inline-flex; align-items: center; gap: 8px; font-family: inherit; font-size: 14px; }
         .btn-primary:hover { background: #1a2a6e; }
 
-        /* TABLA DE RESULTADOS */
+        /* TABLA */
         .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-color); background: white; }
         .data-table { width: 100%; border-collapse: collapse; min-width: 800px; }
         .data-table th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 14px 12px; text-align: left; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
@@ -120,7 +143,7 @@
                 <div class="tab-content active" id="tab-general">
                     <div id="loader-general" class="loader-container">
                         <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
-                        <p>Cargando lista de trabajadores...</p>
+                        <p>Cargando lista de trabajadores desde Google Sheets...</p>
                     </div>
                     <div id="workers-container"></div>
                 </div>
@@ -203,6 +226,11 @@
         document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
 
         // ==========================================
+        // URL del Google Sheets (CSV export)
+        // ==========================================
+        const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1tQpVz1JQA1yJmvoDfr_IthAVKkjfe6BneZgBlBiIdlw/export?format=csv&gid=0';
+
+        // ==========================================
         // TABS
         // ==========================================
         function cambiarTab(tab, btn) {
@@ -217,24 +245,49 @@
         }
 
         // ==========================================
-        // TAB GENERAL: Lista de trabajadores + 3 sitios
+        // CARGAR TRABAJADORES DESDE GOOGLE SHEETS (CSV)
+        // Solo los actuales — no recuerda borrados
         // ==========================================
         let todosTrabajadores = [];
 
-        async function cargarTrabajadoresGeneral() {
+        async function cargarTrabajadoresDesdeSheets() {
             try {
-                const snap = await db.collection("usuarios").get();
+                const resp = await fetch(SHEETS_CSV_URL);
+                const csv = await resp.text();
+                const lines = csv.split(/\r?\n/);
                 todosTrabajadores = [];
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    todosTrabajadores.push({ uid: doc.id, nombre: d.nombre || doc.id });
-                });
+
+                // Saltar la fila 0 (encabezados: USUARIO, NOMBRE, CARGO, CONTRASEÑA, PRIVILEGIOS)
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    const cols = line.split(',');
+                    const uid = cols[0] ? cols[0].trim().replace(/^"|"$/g, '') : '';
+                    const nombre = cols[1] ? cols[1].trim().replace(/^"|"$/g, '') : '';
+                    if (uid && nombre) {
+                        todosTrabajadores.push({ uid: uid, nombre: nombre });
+                    }
+                }
                 todosTrabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
-                await renderWorkers();
+                return true;
             } catch (e) {
-                console.error("Error al cargar trabajadores:", e);
-                mostrarAlertaLoreto("Error al cargar la lista de trabajadores.", "error");
+                console.error("Error al leer Google Sheets:", e);
+                return false;
             }
+        }
+
+        // ==========================================
+        // TAB GENERAL
+        // ==========================================
+        async function cargarTrabajadoresGeneral() {
+            const ok = await cargarTrabajadoresDesdeSheets();
+            if (!ok || todosTrabajadores.length === 0) {
+                document.getElementById('loader-general').style.display = 'none';
+                document.getElementById('workers-container').innerHTML =
+                    '<div class="empty-msg">No se pudo cargar la lista de trabajadores desde Google Sheets. Verifica tu conexión.</div>';
+                return;
+            }
+            await renderWorkers();
             document.getElementById('loader-general').style.display = 'none';
         }
 
@@ -242,7 +295,6 @@
             const container = document.getElementById('workers-container');
             container.innerHTML = '';
 
-            // Cargar todos los docs de sitios_asistencia en una sola consulta
             let sitiosMap = {};
             try {
                 const snapSitios = await db.collection("sitios_asistencia").get();
@@ -255,12 +307,15 @@
                 const s2 = data.sitio_2 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
                 const s3 = data.sitio_3 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
 
+                const safeUid = t.uid.replace(/'/g, "\\'");
+                const safeNombre = (t.nombre || t.uid).replace(/'/g, "\\'");
+
                 const card = document.createElement('div');
                 card.className = 'worker-card';
                 card.innerHTML =
                     '<div class="worker-card-header">' +
                         '<div class="worker-name"><i data-lucide="user"></i> ' + (t.nombre || t.uid) + '</div>' +
-                        '<button class="btn-save-worker" onclick="guardarSitios(\'' + t.uid + '\', \'' + (t.nombre || t.uid).replace(/'/g, "\\'") + '\')" id="btn-save-' + t.uid + '"><i data-lucide="save"></i> Guardar</button>' +
+                        '<button class="btn-save-worker" onclick="guardarSitios(\'' + safeUid + '\', \'' + safeNombre + '\')" id="btn-save-' + t.uid + '"><i data-lucide="save"></i> Guardar</button>' +
                     '</div>' +
                     '<div class="sites-grid">' +
                         renderSitioBox('Sitio 1', t.uid, 1, s1) +
@@ -280,7 +335,7 @@
                     '<input type="text" class="form-input" id="sitio_' + uid + '_' + num + '_nombre" value="' + (s.nombre || '') + '" placeholder="Ej. Puente Negro"></div>' +
                 '<div class="form-group"><label class="form-label">Coordenadas (lat, lng)</label>' +
                     '<input type="text" class="form-input" id="sitio_' + uid + '_' + num + '_coords" value="' + coordVal + '" placeholder="Ej. 19.4326, -99.1332"></div>' +
-                '<div class="form-group"><label class="form-label">Radio de tolerancia (metros)</label>' +
+                '<div class="form-group"><label class="form-label">Radio (metros)</label>' +
                     '<input type="number" class="form-input" id="sitio_' + uid + '_' + num + '_radio" value="' + (s.radio_m || 200) + '" min="10" max="5000"></div>' +
                 '<div class="iva-check"><input type="checkbox" id="sitio_' + uid + '_' + num + '_iva"' + (s.es_iva ? ' checked' : '') + '>' +
                     '<label for="sitio_' + uid + '_' + num + '_iva">IVA (checa en cualquier lado)</label></div>' +
@@ -305,7 +360,6 @@
                         const parts = coordsStr.split(',').map(p => p.trim());
                         if (parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); }
                     }
-
                     sitios['sitio_' + num] = { nombre: nombre, lat: lat, lng: lng, radio_m: radio, es_iva: esIva };
                 }
 
@@ -328,25 +382,18 @@
         }
 
         // ==========================================
-        // TAB PARTICULAR: Buscar asistencias por trabajador y fecha
+        // TAB PARTICULAR
         // ==========================================
         async function cargarTrabajadoresParticular() {
-            try {
-                if (todosTrabajadores.length === 0) {
-                    const snap = await db.collection("usuarios").get();
-                    todosTrabajadores = [];
-                    snap.forEach(doc => { const d = doc.data(); todosTrabajadores.push({ uid: doc.id, nombre: d.nombre || doc.id }); });
-                    todosTrabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
-                }
-                const select = document.getElementById('filtro-trabajador');
-                select.innerHTML = '<option value="">Selecciona un trabajador...</option>';
-                todosTrabajadores.forEach(t => {
-                    select.innerHTML += '<option value="' + t.uid + '">' + (t.nombre || t.uid) + '</option>';
-                });
-                select.dataset.loaded = 'true';
-            } catch (e) {
-                console.error("Error al cargar trabajadores:", e);
+            if (todosTrabajadores.length === 0) {
+                await cargarTrabajadoresDesdeSheets();
             }
+            const select = document.getElementById('filtro-trabajador');
+            select.innerHTML = '<option value="">Selecciona un trabajador...</option>';
+            todosTrabajadores.forEach(t => {
+                select.innerHTML += '<option value="' + t.uid + '">' + (t.nombre || t.uid) + '</option>';
+            });
+            select.dataset.loaded = 'true';
         }
 
         async function buscarAsistencias() {
@@ -365,28 +412,16 @@
                 let registros = [];
                 snap.forEach(doc => {
                     const r = doc.data();
-                    // Filtro por fecha en memoria (las fechas se guardan como string de fecha local)
                     if (fInicio || fFin) {
-                        if (!r.fecha) return;
-                        // r.fecha es un string como "lunes, 5 de enero de 2026"
-                        // Lo convertimos a Date para comparar
-                        const fechaReg = new Date(r.fecha);
-                        if (isNaN(fechaReg)) {
-                            // Intentar parsear desde timestamp si existe
-                            if (r.timestamp) {
-                                const ts = r.timestamp.toDate ? r.timestamp.toDate() : new Date(r.timestamp);
-                                if (fInicio && ts < new Date(fInicio + 'T00:00:00')) return;
-                                if (fFin && ts > new Date(fFin + 'T23:59:59')) return;
-                            }
-                        } else {
-                            if (fInicio && fechaReg < new Date(fInicio + 'T00:00:00')) return;
-                            if (fFin && fechaReg > new Date(fFin + 'T23:59:59')) return;
+                        if (r.timestamp) {
+                            const ts = r.timestamp.toDate ? r.timestamp.toDate() : new Date(r.timestamp);
+                            if (fInicio && ts < new Date(fInicio + 'T00:00:00')) return;
+                            if (fFin && ts > new Date(fFin + 'T23:59:59')) return;
                         }
                     }
                     registros.push(r);
                 });
 
-                // Ordenar por timestamp descendente
                 registros.sort((a, b) => {
                     const ta = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
                     const tb = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate() : new Date(0);
