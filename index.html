@@ -3,241 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Principal | Loreto Ingeniería</title>
+    <title>Inicio de Sesión - LORETO</title>
+
+    <!-- PWA & Web Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#058EA6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/Q7gpgrtS/chiquita.png">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- SDKs de Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="loreto-common.js"></script>
 
     <style>
-        :root {
-            --primary-blue: #263fa4;
-            --light-blue: #eef2ff;
-            --bg-color: #f8fafc;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
-        }
-
-        body {
+        body, html {
+            height: 100%;
             margin: 0;
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #263fa4;
             display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* --- HEADER --- */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            background: white;
-            border-bottom: 1px solid var(--border-color);
-            z-index: 50;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .menu-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--text-main);
-            padding: 5px;
-        }
-
-        .header-title {
-            margin: 0;
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--primary-blue);
-            display: none;
-        }
-
-        @media (min-width: 768px) {
-            .header-title { display: block; }
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-initial {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            background-color: var(--primary-blue);
-            color: white;
-            display: flex;
-            align-items: center;
             justify-content: center;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        /* --- LAYOUT PRINCIPAL --- */
-        .main-layout {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        /* --- SIDEBAR --- */
-        .sidebar {
-            width: 260px;
-            background: white;
-            border-right: 1px solid var(--border-color);
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-            display: flex;
+            align-items: center;
             flex-direction: column;
+            padding: 21px 12px 12px 12px; 
+            box-sizing: border-box;
         }
 
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                height: calc(100vh - 60px);
-                transform: translateX(-100%);
-                z-index: 40;
-            }
-            .sidebar.open {
-                transform: translateX(0);
-            }
-        }
-
-        /* Estilos inyectados para el menú dinámico */
-        .sidebar-nav { padding: 15px 10px; }
-        .sidebar-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
-        .sidebar-section:last-child { border-bottom: none; }
-        .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 15px; }
-        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 8px; margin-bottom: 2px; transition: all 0.2s; }
-        .nav-item:hover { background-color: var(--bg-color); }
-        
-        .nav-item.active { background-color: var(--light-blue); color: var(--primary-blue); font-weight: 700; border-left: 4px solid var(--primary-blue); }
-        .nav-item.active i { color: var(--primary-blue); }
-
-        /* --- CONTENIDO PRINCIPAL --- */
-        .content {
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
-        }
-
-        .welcome-box {
-            background: white;
+        .login-box {
+            background-color: #ffffff;
             border-radius: 12px;
-            padding: 40px;
+            padding: 12px 25px 15px 25px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%; 
+            max-width: 550px; 
             text-align: center;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-sizing: border-box;
         }
 
-        .welcome-box h1 { margin: 0 0 5px 0; font-size: 24px; color: var(--text-main); }
-        .welcome-box h2 { margin: 0 0 20px 0; font-size: 32px; color: var(--primary-blue); text-transform: uppercase; }
+        .main-logo {
+            width: 100px; 
+            height: auto;
+            margin-top: 0px; 
+            margin-bottom: 15px; 
+        }
 
-        .logout-btn {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #ef4444; 
-            color: white;
-            border: none;
+        .company-name {
+            font-size: 13pt; 
+            color: #263fa4;
+            font-weight: bold;
+            margin-bottom: 20px; 
+            line-height: 1.4;
+        }
+
+        .no-wrap {
+            white-space: nowrap;
+        }
+
+        .welcome-text {
+            font-size: 16px; 
+            color: #333333;
+            margin-bottom: 25px; 
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px; 
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px; 
+            color: #555;
+            margin-bottom: 8px; 
+            font-weight: 600;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 18px 16px 18px 45px; 
+            border: 1px solid #cccccc;
             border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 15px; 
+            background-color: #f9f9f9;
+        }
+
+        .input-group .field-icon {
+            position: absolute;
+            left: 14px; 
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 16px; 
+        }
+
+        .input-group .toggle-password {
+            position: absolute;
+            right: 14px; 
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            cursor: pointer;
+            font-size: 16px; 
+        }
+
+        .login-button {
+            background-color: #263fa4;
+            color: #ffffff;
+            border: none;
+            padding: 18px; 
+            border-radius: 6px;
+            font-size: 17px; 
             font-weight: bold;
             cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            width: 100%;
+            margin-top: 5px;
+            margin-bottom: 5px; 
+            transition: background-color 0.3s;
+        }
+        
+        .login-button:hover {
+            background-color: #1a2a6e;
+        }
+        
+        .login-button:disabled {
+            background-color: #6c7ebf;
+            cursor: not-allowed;
+        }
+
+        #mensaje {
+            margin-bottom: 5px;
+            font-size: 13px; 
+            font-weight: bold;
+            min-height: 18px; 
+        }
+
+        .bottom-logo {
+            width: 212px; 
+            height: auto;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .copyright {
+            font-size: 10px; 
+            color: #ffffff;
+            margin-top: 15px; 
+            text-align: center;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
 <body>
 
-    <header class="header">
-        <div class="header-left">
-            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
-            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo Camiones" height="35">
-            <h1 class="header-title">Loreto - Ingeniería, Construcción, Edificación y Remodelación</h1>
+    <div class="login-box">
+        <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="Logo LORETO" class="main-logo">
+        
+        <div class="company-name">
+            <span class="no-wrap">LORETO</span>
         </div>
         
-        <div class="header-right">
-            <div class="user-initial" id="user-initial">U</div>
-            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="Logo Ingeniero" height="35" style="border-radius: 4px;">
-        </div>
-    </header>
+        <div class="welcome-text">Bienvenido</div>
 
-    <div class="main-layout">
-        
-        <aside class="sidebar" id="sidebar"></aside>
-
-        <main class="content">
-            <div class="welcome-box">
-                <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="Logo Loreto" style="width: 120px; margin-bottom: 15px;">
-                <h1>Bienvenido</h1>
-                <h2 id="welcome-name">Usuario</h2>
-                <p style="color: var(--text-muted);">Selecciona una opción del menú lateral para comenzar.</p>
-                
-                <button class="logout-btn" onclick="cerrarSesion()">
-                    <i data-lucide="log-out"></i> Cerrar Sesión
-                </button>
+        <div class="input-group">
+            <label for="username">Usuario</label>
+            <div class="input-wrapper">
+                <i class="fas fa-id-badge field-icon"></i>
+                <input type="text" id="username" placeholder="ID de Usuario">
             </div>
-        </main>
+        </div>
 
+        <div class="input-group">
+            <label for="password">Contraseña</label>
+            <div class="input-wrapper">
+                <i class="fas fa-lock field-icon"></i>
+                <input type="password" id="password" placeholder="••••••••">
+                <i class="fas fa-eye toggle-password" id="togglePasswordIcon"></i>
+            </div>
+        </div>
+
+        <button type="button" class="login-button" id="btn-login" onclick="iniciarSesion()">Iniciar sesión</button>
+        
+        <div id="mensaje"></div>
+
+        <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Maquinaria" class="bottom-logo">
+    </div>
+
+    <div class="copyright">
+        © 2026 LORETO. TODOS LOS DERECHOS RESERVADOS.
     </div>
 
     <script>
-        // 1. CARGAR MENÚ DINÁMICO
-        fetch('menu.html')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('sidebar').innerHTML = html;
-                
-                // Actualizar iconos dentro del menú recién cargado
-                lucide.createIcons(); 
-                
-                // Resaltar en azul en qué página estamos (ej. id="link-inicio")
-                // En otras páginas como asistencia.html, cambiarás 'link-inicio' por 'link-asistencia'
-                const paginaActual = document.getElementById('link-inicio');
-                if(paginaActual) {
-                    paginaActual.classList.add('active');
-                }
-            })
-            .catch(error => console.error('Error cargando el menú:', error));
+        // Service Worker DESACTIVADO — se elimina automáticamente desde loreto-common.js
 
-        // 2. Funcionalidad del botón hamburguesa para móviles
-        const menuBtn = document.getElementById('toggle-menu');
-        const sidebar = document.getElementById('sidebar');
-        
-        menuBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+        const passwordField = document.getElementById('password');
+
+        togglePasswordIcon.addEventListener('click', function () {
+            const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordField.setAttribute('type', type);
+            
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
         });
 
-        // 3. Leer el NOMBRE COMPLETO desde el inicio de sesión
-        const nombreGuardado = localStorage.getItem('nombre');
-        
-        if (nombreGuardado) {
-            document.getElementById('welcome-name').innerText = nombreGuardado;
-            // Usamos la primera letra del nombre completo para el circulito
-            document.getElementById('user-initial').innerText = nombreGuardado.charAt(0).toUpperCase();
-        }
+        function iniciarSesion() {
+            var user = document.getElementById("username").value;
+            var pass = document.getElementById("password").value;
+            var btnLogin = document.getElementById("btn-login");
+            var mensajeDiv = document.getElementById("mensaje");
+            
+            if (!user || !pass) {
+                mensajeDiv.innerText = "Ingresa tus credenciales";
+                mensajeDiv.style.color = "#d93025";
+                return;
+            }
 
-        // 4. Botón Cerrar Sesión
-        function cerrarSesion() {
-            localStorage.removeItem('usuario'); 
-            localStorage.removeItem('privilegio');
-            window.location.href = 'index.html'; 
-        }
+            btnLogin.innerText = "Validando...";
+            btnLogin.disabled = true;
+            mensajeDiv.innerText = "";
+            
+            var scriptURL = "https://script.google.com/macros/s/AKfycbyQBuAUlC0bc8dYgUHgwbTNOa7ut6dKB_Ls6sqgDbKyHF51zKofE9cQ7rWp_SH2X9k/exec";
 
-        // Inicializar iconos del encabezado y contenido principal
-        lucide.createIcons();
+            fetch(scriptURL, {
+                method: 'POST',
+                body: JSON.stringify({ usuario: user, contrasena: pass }),
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                }
+            })
+            .then(response => response.json())
+            .then(respuesta => {
+                btnLogin.innerText = "Iniciar sesión";
+                btnLogin.disabled = false;
+                
+                if(respuesta.success) {
+                    mensajeDiv.style.color = "#188038";
+                    mensajeDiv.innerText = "¡Bienvenido! Redirigiendo...";
+                    
+                    localStorage.setItem('usuario', user); 
+                    localStorage.setItem('privilegio', respuesta.privilegio);
+                    localStorage.setItem('nombre', respuesta.nombre); 
+                    
+                    db.collection("usuarios").doc(user).set({
+                        nombre: respuesta.nombre, 
+                        usuario: user
+                    }, { merge: true })
+                    .then(() => {
+                        console.log("Usuario registrado/actualizado en Firebase");
+                    })
+                    .catch((error) => {
+                        console.error("Error al registrar en Firebase: ", error);
+                    });
+                    
+                    setTimeout(() => {
+                        window.location.href = "inicio.html";
+                    }, 1000);
+                } else {
+                    mensajeDiv.style.color = "#d93025";
+                    mensajeDiv.innerText = respuesta.mensaje;
+                }
+            })
+            .catch(error => {
+                btnLogin.innerText = "Iniciar sesión";
+                btnLogin.disabled = false;
+                mensajeDiv.style.color = "#d93025";
+                mensajeDiv.innerText = "Error de red. Reintenta.";
+                console.error('Error:', error);
+            });
+        }
     </script>
+
 </body>
-</html> 
+</html>
