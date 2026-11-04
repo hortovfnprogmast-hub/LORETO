@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control de Asistencia | Loreto Ingeniería</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="loreto-common.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4; --light-blue: #eef2ff; --bg-color: #f8fafc;
+            --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+            --danger: #dc2626; --success: #10b981; --warning: #f59e0b;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 1px solid var(--border-color); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { background: none; border: none; cursor: pointer; color: var(--text-main); }
+        .header-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary-blue); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-initial { width: 35px; height: 35px; border-radius: 50%; background-color: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: white; border-right: 1px solid var(--border-color); overflow-y: auto; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: calc(100vh - 60px); transform: translateX(-100%); z-index: 40; } .sidebar.open { transform: translateX(0); } .header-title { display: none; } }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .container { max-width: 1200px; margin: 0 auto; padding-bottom: 50px; }
+
+        .page-header { margin-bottom: 25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+        .page-header h1 { font-size: 24px; color: var(--primary-blue); margin: 0 0 5px 0; font-weight: 800; }
+        .page-header p { color: var(--text-muted); margin: 0; font-size: 14px; }
+
+        /* TABS */
+        .tabs-bar { display: flex; gap: 4px; margin-bottom: 25px; background: white; padding: 6px; border-radius: 12px; border: 1px solid var(--border-color); }
+        .tab-btn { flex: 1; padding: 12px 20px; border: none; background: transparent; color: var(--text-muted); font-weight: 700; font-size: 14px; cursor: pointer; border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; }
+        .tab-btn.active { background: var(--primary-blue); color: white; }
+        .tab-btn:hover:not(.active) { background: var(--bg-color); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* CARDS DE TRABAJADORES (General) */
+        .worker-card { background: white; border-radius: 12px; border: 1px solid var(--border-color); padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+        .worker-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
+        .worker-name { font-size: 16px; font-weight: 800; color: var(--primary-blue); display: flex; align-items: center; gap: 10px; }
+        .worker-name i { width: 20px; height: 20px; }
+        .btn-save-worker { background: var(--primary-blue); color: white; border: none; height: 36px; padding: 0 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; }
+        .btn-save-worker:hover { background: #1a2a6e; }
+        .btn-save-worker:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        .sites-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        @media (max-width: 768px) { .sites-grid { grid-template-columns: 1fr; } }
+
+        .site-box { background: var(--bg-color); border-radius: 10px; padding: 14px; border: 1px solid var(--border-color); }
+        .site-box-title { font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
+        .form-group { margin-bottom: 10px; }
+        .form-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
+        .form-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; box-sizing: border-box; outline: none; font-family: inherit; }
+        .form-input:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 2px rgba(38,63,164,0.1); }
+        .iva-check { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .iva-check input { width: 18px; height: 18px; cursor: pointer; }
+        .iva-check label { font-size: 12px; font-weight: 700; color: var(--text-main); cursor: pointer; }
+
+        /* FILTROS (Particular) */
+        .filters-bar { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color); display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+        .btn-primary { background: var(--primary-blue); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; height: 42px; padding: 0 24px; display: inline-flex; align-items: center; gap: 8px; font-family: inherit; font-size: 14px; }
+        .btn-primary:hover { background: #1a2a6e; }
+
+        /* TABLA DE RESULTADOS */
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-color); background: white; }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        .data-table th { background-color: var(--light-blue); color: var(--primary-blue); font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 14px 12px; text-align: left; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+        .data-table td { padding: 12px 12px; border-bottom: 1px solid var(--border-color); font-size: 13px; color: var(--text-main); }
+        .data-table tbody tr:hover { background-color: #f8fafc; }
+        .text-center { text-align: center !important; }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--primary-blue); font-weight: 600; }
+        .empty-msg { text-align: center; padding: 30px; color: var(--text-muted); font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height: 35px; object-fit: contain;">
+            <h1 class="header-title">Control de Asistencia</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">A</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+
+        <main class="content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Control de Asistencia</h1>
+                    <p>Gestiona los sitios de checado de cada trabajador y consulta el historial de asistencias.</p>
+                </div>
+
+                <div class="tabs-bar">
+                    <button class="tab-btn active" onclick="cambiarTab('general', this)"><i data-lucide="users"></i> General</button>
+                    <button class="tab-btn" onclick="cambiarTab('particular', this)"><i data-lucide="search"></i> Particular</button>
+                </div>
+
+                <!-- TAB GENERAL -->
+                <div class="tab-content active" id="tab-general">
+                    <div id="loader-general" class="loader-container">
+                        <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                        <p>Cargando lista de trabajadores...</p>
+                    </div>
+                    <div id="workers-container"></div>
+                </div>
+
+                <!-- TAB PARTICULAR -->
+                <div class="tab-content" id="tab-particular">
+                    <div class="filters-bar">
+                        <div class="filter-group">
+                            <label class="form-label">Trabajador</label>
+                            <select class="form-input" id="filtro-trabajador" style="height:42px;">
+                                <option value="">Selecciona un trabajador...</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="form-label">Fecha Inicio</label>
+                            <input type="date" class="form-input" id="filtro-fecha-inicio" style="height:42px;">
+                        </div>
+                        <div class="filter-group">
+                            <label class="form-label">Fecha Término</label>
+                            <input type="date" class="form-input" id="filtro-fecha-fin" style="height:42px;">
+                        </div>
+                        <button class="btn-primary" onclick="buscarAsistencias()">
+                            <i data-lucide="search"></i> Buscar
+                        </button>
+                    </div>
+
+                    <div id="loader-particular" class="loader-container" style="display:none;">
+                        <i data-lucide="loader-2" class="animate-spin" style="width:40px; height:40px; margin-bottom: 15px;"></i>
+                        <p>Buscando registros...</p>
+                    </div>
+
+                    <div id="resultados-container" style="display:none;">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px;">#</th>
+                                        <th>Día / Fecha</th>
+                                        <th>Sitio / Obra</th>
+                                        <th>Tipo de Registro</th>
+                                        <th>Hora</th>
+                                        <th>Coordenadas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-resultados"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="sin-resultados" class="empty-msg" style="display:none;">
+                        No se encontraron registros para los filtros seleccionados.
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+
+        const nombreAdmin = localStorage.getItem('nombre') || 'Admin';
+        document.getElementById('user-initial').innerText = nombreAdmin.charAt(0).toUpperCase();
+
+        fetch('menu.html').then(res => res.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html; lucide.createIcons();
+            filtrarMenuPorPrivilegio();
+            const linkInicio = document.getElementById('link-inicio'); if(linkInicio) linkInicio.classList.remove('active');
+            const linkCtrl = document.getElementById('link-control-asistencia'); if(linkCtrl) linkCtrl.classList.add('active');
+        });
+        initLogoutFlotante(); lucide.createIcons();
+
+        document.getElementById('toggle-menu').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+        // ==========================================
+        // TABS
+        // ==========================================
+        function cambiarTab(tab, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+            lucide.createIcons();
+            if (tab === 'particular' && !document.getElementById('filtro-trabajador').dataset.loaded) {
+                cargarTrabajadoresParticular();
+            }
+        }
+
+        // ==========================================
+        // TAB GENERAL: Lista de trabajadores + 3 sitios
+        // ==========================================
+        let todosTrabajadores = [];
+
+        async function cargarTrabajadoresGeneral() {
+            try {
+                const snap = await db.collection("usuarios").get();
+                todosTrabajadores = [];
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    todosTrabajadores.push({ uid: doc.id, nombre: d.nombre || doc.id });
+                });
+                todosTrabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                await renderWorkers();
+            } catch (e) {
+                console.error("Error al cargar trabajadores:", e);
+                mostrarAlertaLoreto("Error al cargar la lista de trabajadores.", "error");
+            }
+            document.getElementById('loader-general').style.display = 'none';
+        }
+
+        async function renderWorkers() {
+            const container = document.getElementById('workers-container');
+            container.innerHTML = '';
+
+            // Cargar todos los docs de sitios_asistencia en una sola consulta
+            let sitiosMap = {};
+            try {
+                const snapSitios = await db.collection("sitios_asistencia").get();
+                snapSitios.forEach(doc => { sitiosMap[doc.id] = doc.data(); });
+            } catch (e) { console.warn("No se pudieron cargar sitios:", e); }
+
+            todosTrabajadores.forEach(t => {
+                const data = sitiosMap[t.uid] || {};
+                const s1 = data.sitio_1 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
+                const s2 = data.sitio_2 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
+                const s3 = data.sitio_3 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
+
+                const card = document.createElement('div');
+                card.className = 'worker-card';
+                card.innerHTML =
+                    '<div class="worker-card-header">' +
+                        '<div class="worker-name"><i data-lucide="user"></i> ' + (t.nombre || t.uid) + '</div>' +
+                        '<button class="btn-save-worker" onclick="guardarSitios(\'' + t.uid + '\', \'' + (t.nombre || t.uid).replace(/'/g, "\\'") + '\')" id="btn-save-' + t.uid + '"><i data-lucide="save"></i> Guardar</button>' +
+                    '</div>' +
+                    '<div class="sites-grid">' +
+                        renderSitioBox('Sitio 1', t.uid, 1, s1) +
+                        renderSitioBox('Sitio 2', t.uid, 2, s2) +
+                        renderSitioBox('Sitio 3', t.uid, 3, s3) +
+                    '</div>';
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function renderSitioBox(titulo, uid, num, s) {
+            const coordVal = (s.lat && s.lng) ? (s.lat + ', ' + s.lng) : '';
+            return '<div class="site-box">' +
+                '<div class="site-box-title">' + titulo + '</div>' +
+                '<div class="form-group"><label class="form-label">Nombre del Sitio</label>' +
+                    '<input type="text" class="form-input" id="sitio_' + uid + '_' + num + '_nombre" value="' + (s.nombre || '') + '" placeholder="Ej. Puente Negro"></div>' +
+                '<div class="form-group"><label class="form-label">Coordenadas (lat, lng)</label>' +
+                    '<input type="text" class="form-input" id="sitio_' + uid + '_' + num + '_coords" value="' + coordVal + '" placeholder="Ej. 19.4326, -99.1332"></div>' +
+                '<div class="form-group"><label class="form-label">Radio de tolerancia (metros)</label>' +
+                    '<input type="number" class="form-input" id="sitio_' + uid + '_' + num + '_radio" value="' + (s.radio_m || 200) + '" min="10" max="5000"></div>' +
+                '<div class="iva-check"><input type="checkbox" id="sitio_' + uid + '_' + num + '_iva"' + (s.es_iva ? ' checked' : '') + '>' +
+                    '<label for="sitio_' + uid + '_' + num + '_iva">IVA (checa en cualquier lado)</label></div>' +
+            '</div>';
+        }
+
+        async function guardarSitios(uid, nombreTrabajador) {
+            const btn = document.getElementById('btn-save-' + uid);
+            const oldHtml = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Guardando...'; lucide.createIcons();
+
+            try {
+                const sitios = {};
+                for (let num = 1; num <= 3; num++) {
+                    const nombre = document.getElementById('sitio_' + uid + '_' + num + '_nombre').value.trim();
+                    const coordsStr = document.getElementById('sitio_' + uid + '_' + num + '_coords').value.trim();
+                    const radio = parseInt(document.getElementById('sitio_' + uid + '_' + num + '_radio').value) || 200;
+                    const esIva = document.getElementById('sitio_' + uid + '_' + num + '_iva').checked;
+
+                    let lat = '', lng = '';
+                    if (coordsStr) {
+                        const parts = coordsStr.split(',').map(p => p.trim());
+                        if (parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); }
+                    }
+
+                    sitios['sitio_' + num] = { nombre: nombre, lat: lat, lng: lng, radio_m: radio, es_iva: esIva };
+                }
+
+                await db.collection("sitios_asistencia").doc(uid).set({
+                    uid: uid,
+                    nombre_trabajador: nombreTrabajador,
+                    sitio_1: sitios.sitio_1,
+                    sitio_2: sitios.sitio_2,
+                    sitio_3: sitios.sitio_3,
+                    fecha_actualizacion: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                mostrarAlertaLoreto("Sitios guardados correctamente para " + nombreTrabajador + ".", "success");
+            } catch (e) {
+                console.error("Error al guardar:", e);
+                mostrarAlertaLoreto("Error al guardar los sitios. Revisa tu conexión.", "error");
+            } finally {
+                btn.disabled = false; btn.innerHTML = oldHtml; lucide.createIcons();
+            }
+        }
+
+        // ==========================================
+        // TAB PARTICULAR: Buscar asistencias por trabajador y fecha
+        // ==========================================
+        async function cargarTrabajadoresParticular() {
+            try {
+                if (todosTrabajadores.length === 0) {
+                    const snap = await db.collection("usuarios").get();
+                    todosTrabajadores = [];
+                    snap.forEach(doc => { const d = doc.data(); todosTrabajadores.push({ uid: doc.id, nombre: d.nombre || doc.id }); });
+                    todosTrabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                }
+                const select = document.getElementById('filtro-trabajador');
+                select.innerHTML = '<option value="">Selecciona un trabajador...</option>';
+                todosTrabajadores.forEach(t => {
+                    select.innerHTML += '<option value="' + t.uid + '">' + (t.nombre || t.uid) + '</option>';
+                });
+                select.dataset.loaded = 'true';
+            } catch (e) {
+                console.error("Error al cargar trabajadores:", e);
+            }
+        }
+
+        async function buscarAsistencias() {
+            const uid = document.getElementById('filtro-trabajador').value;
+            const fInicio = document.getElementById('filtro-fecha-inicio').value;
+            const fFin = document.getElementById('filtro-fecha-fin').value;
+
+            if (!uid) { mostrarAlertaLoreto("Selecciona un trabajador.", "warning"); return; }
+
+            document.getElementById('loader-particular').style.display = 'flex';
+            document.getElementById('resultados-container').style.display = 'none';
+            document.getElementById('sin-resultados').style.display = 'none';
+
+            try {
+                const snap = await db.collection("registro_asistencia").where("usuario_id", "==", uid).get();
+                let registros = [];
+                snap.forEach(doc => {
+                    const r = doc.data();
+                    // Filtro por fecha en memoria (las fechas se guardan como string de fecha local)
+                    if (fInicio || fFin) {
+                        if (!r.fecha) return;
+                        // r.fecha es un string como "lunes, 5 de enero de 2026"
+                        // Lo convertimos a Date para comparar
+                        const fechaReg = new Date(r.fecha);
+                        if (isNaN(fechaReg)) {
+                            // Intentar parsear desde timestamp si existe
+                            if (r.timestamp) {
+                                const ts = r.timestamp.toDate ? r.timestamp.toDate() : new Date(r.timestamp);
+                                if (fInicio && ts < new Date(fInicio + 'T00:00:00')) return;
+                                if (fFin && ts > new Date(fFin + 'T23:59:59')) return;
+                            }
+                        } else {
+                            if (fInicio && fechaReg < new Date(fInicio + 'T00:00:00')) return;
+                            if (fFin && fechaReg > new Date(fFin + 'T23:59:59')) return;
+                        }
+                    }
+                    registros.push(r);
+                });
+
+                // Ordenar por timestamp descendente
+                registros.sort((a, b) => {
+                    const ta = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
+                    const tb = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate() : new Date(0);
+                    return tb - ta;
+                });
+
+                const tbody = document.getElementById('tbody-resultados');
+                if (registros.length === 0) {
+                    document.getElementById('sin-resultados').style.display = 'block';
+                } else {
+                    tbody.innerHTML = '';
+                    registros.forEach((r, i) => {
+                        tbody.innerHTML +=
+                            '<tr>' +
+                                '<td class="text-center" style="font-weight:700; color:var(--text-muted);">' + (i + 1) + '</td>' +
+                                '<td>' + (r.fecha || '-') + '</td>' +
+                                '<td style="font-weight:600;">' + (r.sitio_obra || '-') + '</td>' +
+                                '<td>' + (r.tipo_registro || '-') + '</td>' +
+                                '<td style="font-weight:700; color:var(--primary-blue);">' + (r.hora || '-') + '</td>' +
+                                '<td style="font-size:11px; color:var(--text-muted);">' + (r.coordenadas || '-') + '</td>' +
+                            '</tr>';
+                    });
+                    document.getElementById('resultados-container').style.display = 'block';
+                }
+            } catch (e) {
+                console.error("Error al buscar asistencias:", e);
+                mostrarAlertaLoreto("Error al buscar los registros.", "error");
+            }
+
+            document.getElementById('loader-particular').style.display = 'none';
+        }
+
+        // ==========================================
+        // INICIALIZACIÓN
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', cargarTrabajadoresGeneral);
+    </script>
+</body>
+</html>
