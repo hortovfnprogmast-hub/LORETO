@@ -4,14 +4,14 @@
  * Estrategia:
  *   - Navegación (HTML): NETWORK-FIRST. Siempre busca la versión más reciente
  *     en la red; solo usa cache como fallback cuando no hay conexión.
- *     Esto evita que los móviles queden pegados a una versión vieja de la app.
- *   - Assets estáticos (CDN de Firebase, Lucide, fuentes, imágenes ibb.co):
+ *   - Assets estáticos (CDN de Firebase, Lucide, fuentes):
  *     STALE-WHILE-REVALIDATE. Sirve del cache y actualiza en paralelo.
+ *   - Imágenes de ibb.co: NO se interceptan (van directo al navegador).
  *
  * Versión: bumped cada vez que se actualiza la app para forzar el refresco
  * del service worker en los dispositivos que ya lo tenían registrado.
  */
-var SW_VERSION = 'loreto-v1.1.0-20261105';
+var SW_VERSION = 'loreto-v1.2.0-20261105';
 var CACHE_PREFIX = 'loreto-cache-';
 var CACHE_NAME = CACHE_PREFIX + SW_VERSION;
 
@@ -28,7 +28,6 @@ self.addEventListener('install', function (event) {
     self.skipWaiting();
     event.waitUntil(
         caches.keys().then(function (keys) {
-            // Limpiar caches viejos al instalar
             return Promise.all(
                 keys.filter(function (k) { return k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME; })
                     .map(function (k) { return caches.delete(k); })
@@ -64,13 +63,11 @@ self.addEventListener('fetch', function (event) {
         event.respondWith(
             fetch(req)
                 .then(function (resp) {
-                    // Guardar copia fresca del HTML
                     var copy = resp.clone();
                     caches.open(CACHE_NAME).then(function (cache) { cache.put(req, copy); });
                     return resp;
                 })
                 .catch(function () {
-                    // Sin red: servir del cache, o fallback a index.html
                     return caches.match(req).then(function (cached) {
                         return cached || caches.match('index.html');
                     });
@@ -85,14 +82,12 @@ self.addEventListener('fetch', function (event) {
         event.respondWith(
             caches.match(req).then(function (cached) {
                 var fetchPromise = fetch(req).then(function (resp) {
-                    // Solo cachear respuestas válidas (status 200, tipo básico/cors)
                     if (resp && resp.status === 200 && (resp.type === 'basic' || resp.type === 'cors')) {
                         var copy = resp.clone();
                         caches.open(CACHE_NAME).then(function (cache) { cache.put(req, copy); });
                     }
                     return resp;
                 }).catch(function () {
-                    // Sin red y sin cache => dejar que el navegador maneje el error
                     return cached || Response.error();
                 });
                 return cached || fetchPromise;
@@ -102,5 +97,5 @@ self.addEventListener('fetch', function (event) {
     }
 
     // 3) Todo lo demás => dejar pasar al navegador
-    // (no interceptamos POST, Firestore, Google Apps Script, etc.)
+    // (no interceptamos POST, Firestore, Google Apps Script, imágenes ibb.co, etc.)
 });
