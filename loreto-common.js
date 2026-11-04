@@ -120,65 +120,36 @@
     };
 
     // ==========================================
-    // 3. LOGOUT FLOTANTE (botón rojo bajo el logo superior derecho)
+    // 3. LOGOUT POR CLIC EN LOGO SUPERIOR DERECHO
     // ==========================================
-    // Inyecta el botón "Cerrar sesión" que aparece al hover o clic sobre
-    // el logo de la esquina superior derecha. Funciona en desktop (hover)
-    // y en móvil (tap). Idempotente: seguro llamar varias veces.
+    // El logo de la esquina superior derecha funciona directamente como
+    // botón de cerrar sesión. Al hacer clic, muestra una confirmación Loreto.
+    // Si se confirma, limpia localStorage y redirige a index.html.
+    // Idempotente: seguro llamar varias veces.
     window.initLogoutFlotante = function () {
         var headerRight = document.querySelector('.header-right');
         if (!headerRight) return;
-        if (headerRight.querySelector('.loreto-logo-wrap')) return; // ya inicializado
+        if (headerRight.dataset.loretoLogoutInit) return; // ya inicializado
 
-        // El logo es el último <img> dentro de .header-right
         var logo = headerRight.querySelector('img');
         if (!logo) return;
 
-        // Envolver el logo en un contenedor relativo
-        var wrap = document.createElement('div');
-        wrap.className = 'loreto-logo-wrap';
-        logo.parentNode.insertBefore(wrap, logo);
-        wrap.appendChild(logo);
+        // Indicar visualmente que el logo es clicable
+        logo.style.cursor = 'pointer';
+        logo.title = 'Cerrar sesión';
 
-        // Crear el popup con el botón rojo
-        var popup = document.createElement('div');
-        popup.className = 'loreto-logout-popup';
-        popup.innerHTML =
-            '<button class="loreto-logout-btn" type="button">' +
-            '<i data-lucide="log-out"></i> Cerrar sesión' +
-            '</button>';
-        wrap.appendChild(popup);
-
-        var btn = popup.querySelector('button');
-        btn.addEventListener('click', function (e) {
+        logo.addEventListener('click', function (e) {
             e.stopPropagation();
-            window.cerrarSesion();
+            if (typeof window.mostrarConfirmLoreto === 'function') {
+                window.mostrarConfirmLoreto('¿Deseas cerrar sesión?', function () {
+                    window.cerrarSesion();
+                });
+            } else {
+                window.cerrarSesion();
+            }
         });
 
-        // Mostrar al hover (desktop)
-        var hideTimer = null;
-        wrap.addEventListener('mouseenter', function () {
-            if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-            popup.classList.add('show');
-            if (window.lucide) window.lucide.createIcons();
-        });
-        wrap.addEventListener('mouseleave', function () {
-            hideTimer = setTimeout(function () {
-                popup.classList.remove('show');
-            }, 250);
-        });
-
-        // Mostrar al clic/tap (móvil)
-        wrap.addEventListener('click', function (e) {
-            e.stopPropagation();
-            popup.classList.toggle('show');
-            if (window.lucide) window.lucide.createIcons();
-        });
-
-        // Cerrar al clic fuera
-        document.addEventListener('click', function (e) {
-            if (!wrap.contains(e.target)) popup.classList.remove('show');
-        });
+        headerRight.dataset.loretoLogoutInit = 'true';
     };
 
     // ==========================================
