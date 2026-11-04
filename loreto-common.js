@@ -7,7 +7,7 @@
  *
  * Funciones expuestas:
  *   - filtrarMenuPorPrivilegio()   : oculta secciones del sidebar con data-privilegio="1" si el usuario tiene privilegio "2"
- *   - initLogoutFlotante()         : el logo superior derecho funciona como botón de cerrar sesión
+ *   - initLogoutFlotante()         : inyecta el botón rojo "Cerrar sesión" flotante bajo el logo superior derecho
  *   - cerrarSesion()               : limpia localStorage y redirige a index.html
  *   - mostrarAlertaLoreto(msg, tipo)   : reemplaza alert() nativo. tipo: 'info'|'success'|'error'|'warning'
  *   - mostrarConfirmLoreto(msg, onSi, onNo) : reemplaza confirm() nativo
@@ -40,6 +40,20 @@
     }
 
     // ==========================================
+    // ELIMINAR SERVICE WORKER viejo (causaba cacheo de páginas y logos rotos)
+    // ==========================================
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            registrations.forEach(function (registration) { registration.unregister(); });
+        });
+    }
+    if ('caches' in window) {
+        caches.keys().then(function (names) {
+            names.forEach(function (name) { caches.delete(name); });
+        });
+    }
+
+    // ==========================================
     // CSS compartido (inyectado una sola vez)
     // ==========================================
     var STYLE_ID = 'loreto-common-css';
@@ -47,6 +61,24 @@
         var style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent =
+            /* Contenedor del logo superior derecho + popup logout */ +
+            ".loreto-logo-wrap { position: relative; display: inline-flex; align-items: center; cursor: pointer; }" +
+            ".loreto-logout-popup {" +
+            "  display: none; position: absolute; top: calc(100% + 8px); right: 0; z-index: 1000;" +
+            "  animation: loretoPopIn 0.18s ease-out;" +
+            "}" +
+            ".loreto-logout-popup.show { display: block; }" +
+            ".loreto-logout-btn {" +
+            "  background: #dc2626; color: #ffffff; border: none; padding: 10px 18px;" +
+            "  border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer;" +
+            "  display: inline-flex; align-items: center; gap: 8px;" +
+            "  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.45); white-space: nowrap;" +
+            "  font-family: 'Inter', 'Segoe UI', sans-serif; transition: background 0.2s;" +
+            "}" +
+            ".loreto-logout-btn:hover { background: #b91c1c; }" +
+            ".loreto-logout-btn svg, .loreto-logout-btn i { width: 16px; height: 16px; }" +
+
+            /* Modal Loreto (alertas y confirmaciones) */ +
             ".loreto-modal-overlay {" +
             "  position: fixed; top: 0; left: 0; width: 100%; height: 100%;" +
             "  background: rgba(0,0,0,0.6); z-index: 10001;" +
@@ -81,6 +113,7 @@
             ".loreto-modal-btn.success:hover { background: #059669; }" +
             ".loreto-modal-btn.neutral { background: #e2e8f0; color: #1e293b; }" +
             ".loreto-modal-btn.neutral:hover { background: #cbd5e1; }" +
+
             "@keyframes loretoPopIn {" +
             "  from { transform: translateY(-8px) scale(0.96); opacity: 0; }" +
             "  to   { transform: translateY(0) scale(1); opacity: 1; }" +
@@ -91,9 +124,12 @@
     // ==========================================
     // 1. PRIVILEGIOS DEL MENÚ LATERAL
     // ==========================================
+    // Oculta las secciones del sidebar marcadas con data-privilegio="1"
+    // cuando el usuario logueado tiene privilegio "2" (personal de campo).
+    // Llamar DESPUÉS de que el fetch('menu.html') haya insertado el HTML.
     window.filtrarMenuPorPrivilegio = function () {
         var priv = localStorage.getItem('privilegio');
-        if (String(priv) !== '2') return;
+        if (String(priv) !== '2') return; // privilegio 1 o no definido => menú completo
         var sidebar = document.getElementById('sidebar');
         if (!sidebar) return;
         sidebar.querySelectorAll('[data-privilegio="1"]').forEach(function (el) {
@@ -116,14 +152,19 @@
     // ==========================================
     // 3. LOGOUT POR CLIC EN LOGO SUPERIOR DERECHO
     // ==========================================
+    // El logo de la esquina superior derecha funciona directamente como
+    // botón de cerrar sesión. Al hacer clic, muestra una confirmación Loreto.
+    // Si se confirma, limpia localStorage y redirige a index.html.
+    // Idempotente: seguro llamar varias veces.
     window.initLogoutFlotante = function () {
         var headerRight = document.querySelector('.header-right');
         if (!headerRight) return;
-        if (headerRight.dataset.loretoLogoutInit) return;
+        if (headerRight.dataset.loretoLogoutInit) return; // ya inicializado
 
         var logo = headerRight.querySelector('img');
         if (!logo) return;
 
+        // Indicar visualmente que el logo es clicable
         logo.style.cursor = 'pointer';
         logo.title = 'Cerrar sesión';
 
@@ -142,8 +183,9 @@
     };
 
     // ==========================================
-    // 4. ALERTA LORETO (reemplaza alert() nativo)
+    // 4. ALERTA LORETO (reemplaza alert() nativo del navegador)
     // ==========================================
+    // tipo: 'info' | 'success' | 'error' | 'warning'
     window.mostrarAlertaLoreto = function (mensaje, tipo) {
         tipo = tipo || 'info';
         var icons = {
@@ -167,7 +209,7 @@
             '</div>';
         document.body.appendChild(overlay);
         if (window.lucide) window.lucide.createIcons();
-        void overlay.offsetWidth;
+        void overlay.offsetWidth; // forzar reflow para animación
         overlay.classList.add('show');
 
         var cerrar = function () {
@@ -189,6 +231,7 @@
     // ==========================================
     // 5. CONFIRMACIÓN LORETO (reemplaza confirm() nativo)
     // ==========================================
+    // Uso: mostrarConfirmLoreto("¿Eliminar?", function() { /* al Sí */ }, function() { /* al No (opcional) */ })
     window.mostrarConfirmLoreto = function (mensaje, onSi, onNo) {
         var safe = String(mensaje == null ? '' : mensaje).replace(/</g, '&lt;');
         var overlay = document.createElement('div');
