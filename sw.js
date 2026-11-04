@@ -11,7 +11,7 @@
  * Versión: bumped cada vez que se actualiza la app para forzar el refresco
  * del service worker en los dispositivos que ya lo tenían registrado.
  */
-var SW_VERSION = 'loreto-v1.0.0-20261104';
+var SW_VERSION = 'loreto-v1.1.0-20261105';
 var CACHE_PREFIX = 'loreto-cache-';
 var CACHE_NAME = CACHE_PREFIX + SW_VERSION;
 
@@ -21,8 +21,7 @@ var CDN_HOSTS = [
     'fonts.gstatic.com',
     'unpkg.com',
     'cdnjs.cloudflare.com',
-    'www.gstatic.com',
-    'i.ibb.co'
+    'www.gstatic.com'
 ];
 
 self.addEventListener('install', function (event) {
