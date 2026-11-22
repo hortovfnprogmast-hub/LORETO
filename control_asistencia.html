@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -78,6 +79,11 @@
         .btn-save-worker { background: var(--primary-blue); color: white; border: none; height: 36px; padding: 0 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; font-family: inherit; }
         .btn-save-worker:hover { background: #1a2a6e; }
         .btn-save-worker:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        /* Tarjeta GENERAL (sitios compartidos con todos los trabajadores) */
+        .general-card { border: 2px solid var(--primary-blue); background: linear-gradient(135deg, #eef2ff 0%, #ffffff 60%); }
+        .general-card .worker-name { font-size: 17px; }
+        .general-badge { display: inline-block; font-size: 10px; font-weight: 700; color: var(--primary-blue); background: #dbe4ff; padding: 3px 10px; border-radius: 10px; margin-left: 8px; text-transform: uppercase; letter-spacing: 0.3px; vertical-align: middle; }
 
         .sites-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
         @media (max-width: 768px) { .sites-grid { grid-template-columns: 1fr; } }
@@ -304,6 +310,27 @@
                 snapSitios.forEach(doc => { sitiosMap[doc.id] = doc.data(); });
             } catch (e) { console.warn("No se pudieron cargar sitios:", e); }
 
+            // === TARJETA GENERAL (sitios compartidos con todos los trabajadores) ===
+            // Se guarda en sitios_asistencia/GENERAL y aparece en el dropdown de cada trabajador.
+            const gData = sitiosMap['GENERAL'] || {};
+            const g1 = gData.sitio_1 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
+            const g2 = gData.sitio_2 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
+            const g3 = gData.sitio_3 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
+            const generalCard = document.createElement('div');
+            generalCard.className = 'worker-card general-card';
+            generalCard.innerHTML =
+                '<div class="worker-card-header">' +
+                    '<div class="worker-name"><i data-lucide="building-2"></i> General <span class="general-badge">Sitios compartidos con todos los trabajadores</span></div>' +
+                    '<button class="btn-save-worker" onclick="guardarSitios(\'GENERAL\', \'General\')" id="btn-save-GENERAL"><i data-lucide="save"></i> Guardar</button>' +
+                '</div>' +
+                '<div class="sites-grid">' +
+                    renderSitioBox('Sitio 1 (Ej. Oficina)', 'GENERAL', 1, g1) +
+                    renderSitioBox('Sitio 2', 'GENERAL', 2, g2) +
+                    renderSitioBox('Sitio 3', 'GENERAL', 3, g3) +
+                '</div>';
+            container.appendChild(generalCard);
+
+            // === TARJETAS DE TRABAJADORES INDIVIDUALES ===
             todosTrabajadores.forEach(t => {
                 const data = sitiosMap[t.uid] || {};
                 const s1 = data.sitio_1 || { nombre: '', lat: '', lng: '', radio_m: 200, es_iva: false };
