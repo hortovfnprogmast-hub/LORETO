@@ -260,7 +260,8 @@
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Proyecto</label>
-                                <input type="text" class="form-input" id="proyecto" placeholder="Nombre del proyecto...">
+                                <input type="text" class="form-input" id="proyecto" list="obras-list-adicionales" placeholder="Escribe o selecciona el proyecto..." autocomplete="off">
+                                <datalist id="obras-list-adicionales"></datalist>
                             </div>
                         </div>
                         <div class="grid-2">
@@ -487,8 +488,25 @@
             
             inicializarFirma(); 
             cargarMisSolicitudes();
+            cargarObrasEnDatalist();
             lucide.createIcons();
         });
+
+        // Poblar el datalist de Proyecto con las obras creadas en "Obra Nueva" (obras_loreto).
+        // Se mantiene con onSnapshot para que una obra recién creada aparezca al instante.
+        function cargarObrasEnDatalist() {
+            db.collection("obras_loreto").onSnapshot(snap => {
+                const dl = document.getElementById('obras-list-adicionales');
+                if (!dl) return;
+                const obras = [];
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    if (d.proyecto) obras.push(d.proyecto);
+                });
+                obras.sort((a, b) => a.localeCompare(b));
+                dl.innerHTML = obras.map(p => `<option value="${p}"></option>`).join('');
+            });
+        }
 
         function cargarMisSolicitudes() {
             db.collection("solicitudes_adicionales").where("residente_id","==",appData.usuario).get().then(q => {
