@@ -196,23 +196,37 @@
         let sitiosTrabajador = {};
         async function cargarSitiosTrabajador() {
             try {
-                const doc = await db.collection("sitios_asistencia").doc(idUsuario).get();
                 const select = document.getElementById('sitio');
                 select.innerHTML = '<option value="">Selecciona ubicación...</option>';
                 sitiosTrabajador = {};
-                if (doc.exists) {
-                    const data = doc.data();
+
+                // 1. Sitios GENERALES (compartidos con todos los trabajadores)
+                const generalDoc = await db.collection("sitios_asistencia").doc('GENERAL').get();
+                if (generalDoc.exists) {
+                    const gData = generalDoc.data();
                     for (let i = 1; i <= 3; i++) {
-                        const s = data['sitio_' + i];
+                        const s = gData['sitio_' + i];
                         if (s && s.nombre) {
                             select.innerHTML += '<option value="' + s.nombre.replace(/"/g, '&quot;') + '">' + s.nombre + (s.es_iva ? ' (IVA)' : '') + '</option>';
                             sitiosTrabajador[s.nombre] = s;
                         }
                     }
-                    if (Object.keys(sitiosTrabajador).length === 0) {
-                        select.innerHTML = '<option value="">Sin sitios asignados</option>';
+                }
+
+                // 2. Sitios PROPIOS del trabajador
+                const doc = await db.collection("sitios_asistencia").doc(idUsuario).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    for (let i = 1; i <= 3; i++) {
+                        const s = data['sitio_' + i];
+                        if (s && s.nombre && !sitiosTrabajador[s.nombre]) {
+                            select.innerHTML += '<option value="' + s.nombre.replace(/"/g, '&quot;') + '">' + s.nombre + (s.es_iva ? ' (IVA)' : '') + '</option>';
+                            sitiosTrabajador[s.nombre] = s;
+                        }
                     }
-                } else {
+                }
+
+                if (Object.keys(sitiosTrabajador).length === 0) {
                     select.innerHTML = '<option value="">Sin sitios asignados</option>';
                 }
             } catch (e) {
