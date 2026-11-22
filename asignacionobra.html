@@ -102,7 +102,7 @@
             <div class="container">
                 <div class="page-header">
                     <h1>Obras Registradas</h1>
-                    <p>Selecciona una obra para editarla o asigna un residente directamente en la lista</p>
+                    <p>Selecciona una obra para editarla o asigna hasta 3 trabajadores directamente en la lista</p>
                 </div>
 
                 <div class="data-table-container">
@@ -187,15 +187,23 @@
         function closeCustomAlert() { document.getElementById('custom-alert').style.display = 'none'; }
 
         async function cargarUsuarios() {
+            // Cargar desde Google Sheets (CSV) — solo trabajadores actuales
+            const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1tQpVz1JQA1yJmvoDfr_IthAVKkjfe6BneZgBlBiIdlw/export?format=csv&gid=0';
             try {
-                const q = await db.collection("usuarios").get();
+                const resp = await fetch(SHEETS_CSV_URL);
+                const csv = await resp.text();
+                const lines = csv.split(/\r?\n/);
                 listaUsuarios = [];
-                q.forEach(doc => {
-                    const data = doc.data();
-                    if(data.nombre) listaUsuarios.push(data.nombre);
-                    else if(data.usuario) listaUsuarios.push(data.usuario);
-                });
-            } catch(e) { console.log("No se pudieron cargar usuarios", e); }
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    const cols = line.split(',');
+                    const uid = cols[0] ? cols[0].trim().replace(/^"|"$/g, '') : '';
+                    const nombre = cols[1] ? cols[1].trim().replace(/^"|"$/g, '') : '';
+                    if (uid && nombre) listaUsuarios.push(nombre);
+                }
+                listaUsuarios.sort((a, b) => a.localeCompare(b));
+            } catch(e) { console.log("No se pudo cargar Google Sheets", e); }
         }
 
         function cargarObras() {
@@ -226,8 +234,10 @@
                         try { fechaAsignacion = new Date(obra.fecha_asignacion).toLocaleString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch(e){}
                     }
 
-                    const opcionesUsuarios = listaUsuarios.map(u => 
-                        `<option value="${u}" ${obra.usuario_asignado === u ? 'selected' : ''}>${u}</option>`
+                    let asignados = Array.isArray(obra.usuarios_asignados) ? [...obra.usuarios_asignados] : (obra.usuario_asignado ? [obra.usuario_asignado] : []);
+                    while (asignados.length < 3) asignados.push('');
+                    const opts = (sel) => listaUsuarios.map(u =>
+                        `<option value="${u}" ${sel === u ? 'selected' : ''}>${u}</option>`
                     ).join('');
 
                     const tr = document.createElement('tr');
@@ -247,10 +257,15 @@
                         <td>${obra.cliente || 'N/A'}</td>
                         <td>${obra.fecha_inicio || 'N/A'}</td>
                         <td>${obra.fecha_termino || 'N/A'}</td>
-                        <td onclick="event.stopPropagation()">
-                            <select class="select-asignacion" onchange="asignarUsuario('${id}', this.value)">
-                                <option value="">Sin asignar...</option>
-                                ${opcionesUsuarios}
+                        <td onclick="event.stopPropagation()" style="min-width: 200px;">
+                            <select class="select-asignacion" onchange="asignarUsuario('${id}', 0, this.value)" style="margin-bottom: 5px;">
+                                <option value="">Trabajador 1...</option>${opts(asignados[0])}
+                            </select>
+                            <select class="select-asignacion" onchange="asignarUsuario('${id}', 1, this.value)" style="margin-bottom: 5px;">
+                                <option value="">Trabajador 2...</option>${opts(asignados[1])}
+                            </select>
+                            <select class="select-asignacion" onchange="asignarUsuario('${id}', 2, this.value)">
+                                <option value="">Trabajador 3...</option>${opts(asignados[2])}
                             </select>
                         </td>
                         <td id="fecha-asig-${id}">${fechaAsignacion}</td>
@@ -280,22 +295,33 @@
             window.location.href = `obranueva.html?id=${obraSeleccionadaId}`;
         }
 
-        async function asignarUsuario(id, usuario) {
-            const fecha = new Date().toISOString();
+        async function asignarUsuario(id, index, usuario) {
+            // Guarda hasta 3 trabajadores por obra usando una transacción (sin race conditions).
+            // usuario_asignado se mantiene por compatibilidad (= primer trabajador).
+            // No se requiere asignar los 3: cada slot es independiente.
             try {
-                await db.collection("obras_loreto").doc(id).update({
-                    usuario_asignado: usuario,
-                    fecha_asignacion: fecha
+                const ref = db.collection("obras_loreto").doc(id);
+                await db.runTransaction(async (t) => {
+                    const doc = await t.get(ref);
+                    const data = doc.exists ? doc.data() : {};
+                    let arr = Array.isArray(data.usuarios_asignados) ? [...data.usuarios_asignados] : (data.usuario_asignado ? [data.usuario_asignado] : []);
+                    while (arr.length < 3) arr.push('');
+                    arr[index] = usuario || '';
+                    const updateObj = {
+                        usuarios_asignados: arr,
+                        usuario_asignado: arr[0] || ''
+                    };
+                    if (arr.some(u => u) && !data.fecha_asignacion) {
+                        updateObj.fecha_asignacion = new Date().toISOString();
+                    }
+                    if (!arr.some(u => u)) {
+                        updateObj.fecha_asignacion = '';
+                    }
+                    t.update(ref, updateObj);
                 });
-                
-                // Actualizar la fecha en la tabla sin recargar
-                const celda = document.getElementById(`fecha-asig-${id}`);
-                celda.innerText = new Date(fecha).toLocaleString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-                
-                showCustomAlert("Éxito", `Obra asignada a ${usuario} correctamente.`, true);
             } catch(error) {
                 console.error("Error al asignar: ", error);
-                showCustomAlert("Error", `Código: ${error.code}\nMensaje: ${error.message}`, false);
+                showCustomAlert("Error", `Mensaje: ${error.message}`, false);
             }
         }
 
