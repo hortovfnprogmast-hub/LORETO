@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Matrices | Loreto Ingeniería</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="loreto-common.js"></script>
+    <style>
+        :root { --primary-blue:#263fa4; --light-blue:#eef2ff; --bg-color:#f8fafc; --text-main:#1e293b; --text-muted:#64748b; --border-color:#e2e8f0; --success-green:#10b981; --teal:#14a981; --rojo:#dc2626; }
+        body { margin:0; font-family:'Inter',sans-serif; background:var(--bg-color); display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        .header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:white; border-bottom:1px solid var(--border-color); z-index:50; }
+        .header-left { display:flex; align-items:center; gap:15px; }
+        .menu-btn { background:none; border:none; cursor:pointer; color:var(--text-main); padding:5px; }
+        .header-title { margin:0; font-size:15px; font-weight:700; color:var(--primary-blue); }
+        .header-right { display:flex; align-items:center; gap:12px; }
+        .user-initial { width:35px; height:35px; border-radius:50%; background:var(--primary-blue); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; }
+        .main-layout { display:flex; flex:1; overflow:hidden; }
+        .sidebar { width:260px; background:white; border-right:1px solid var(--border-color); overflow-y:auto; transition:transform .3s ease; display:flex; flex-direction:column; }
+        @media (max-width:768px){ .sidebar{ position:fixed; height:calc(100vh - 60px); transform:translateX(-100%); z-index:40; } .sidebar.open{ transform:translateX(0);} .header-title{ display:none;} }
+        .content { flex:1; overflow-y:auto; padding:18px; }
+        .card { background:white; border-radius:14px; padding:22px; box-shadow:0 4px 18px rgba(0,0,0,.06); border:1px solid var(--border-color); max-width:1100px; margin:0 auto; }
+        .card h2 { margin:0 0 4px 0; color:var(--primary-blue); font-size:18px; }
+        .card .sub { color:var(--text-muted); font-size:12px; margin:0 0 16px 0; }
+        .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+        .toolbar input { padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; flex:1; min-width:200px; }
+        .btn { padding:9px 14px; border:none; border-radius:7px; font-weight:700; cursor:pointer; font-size:12px; color:white; display:inline-flex; align-items:center; gap:6px; }
+        .btn-azul { background:var(--primary-blue); } .btn-azul:hover{ background:#1a2a6e; }
+        .btn-teal { background:var(--teal); } .btn-teal:hover{ background:#108c6a; }
+        .btn-rojo { background:var(--rojo); } .btn-rojo:hover{ background:#b91c1c; }
+        .btn-gris { background:#64748b; } .btn-gris:hover{ background:#475569; }
+        .btn-sm { padding:5px 9px; font-size:11px; border-radius:5px; }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        thead th { background:#217346; color:white; padding:10px; text-align:left; font-size:11px; text-transform:uppercase; }
+        tbody td { padding:9px 10px; border-bottom:1px solid var(--border-color); }
+        tbody tr:hover { background:var(--light-blue); }
+        .pu { color:var(--success-green); font-weight:700; text-align:right; }
+        .empty { text-align:center; color:var(--text-muted); padding:40px; font-size:14px; }
+        .acciones { display:flex; gap:6px; }
+        .loader { text-align:center; color:var(--text-muted); padding:30px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height:35px; width:auto; object-fit:contain;">
+            <h1 class="header-title">Base Matrices</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="content">
+            <div class="card">
+                <h2>Base de Matrices</h2>
+                <p class="sub">Matrices (análisis de precios unitarios) guardadas. Ábrete una para editarla o reexportarla a Excel/PDF.</p>
+                <div class="toolbar">
+                    <input id="buscar" placeholder="Buscar por obra, análisis o cliente...">
+                    <a class="btn btn-teal" href="nueva_matriz.html"><i data-lucide="plus"></i> Nueva matriz</a>
+                    <button class="btn btn-gris" id="btn-recargar"><i data-lucide="refresh-cw"></i> Recargar</button>
+                </div>
+                <div id="loader" class="loader">Cargando matrices...</div>
+                <div class="table-wrap">
+                <table id="tabla" style="display:none;">
+                    <thead><tr><th>Obra</th><th>Análisis</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">P.U.</th><th>Acciones</th></tr></thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+                </div>
+                <div id="empty" class="empty" style="display:none;">No hay matrices guardadas. Crea una desde "Nueva matriz".</div>
+            </div>
+        </main>
+    </div>
+    <script>
+        const firebaseConfig = { apiKey:"AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8", authDomain:"loretoapp-2ca14.firebaseapp.com", projectId:"loretoapp-2ca14", storageBucket:"loretoapp-2ca14.firebasestorage.app", messagingSenderId:"794212467801", appId:"1:794212467801:web:f0bf6fd01579f0aec35d48" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        fetch('menu.html').then(r=>r.text()).then(html=>{ document.getElementById('sidebar').innerHTML=html; lucide.createIcons(); filtrarMenuPorPrivilegio(); const lm=document.getElementById('link-base-matrices'); if(lm) lm.classList.add('active'); });
+        initLogoutFlotante(); lucide.createIcons();
+        document.getElementById('user-initial').innerText=(localStorage.getItem('nombre')||'U').charAt(0).toUpperCase();
+        document.getElementById('toggle-menu').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));
+
+        let todas = [];
+        function fmt(f){ if(!f) return ''; try{ const d=f.toDate? f.toDate(): new Date(f); return d.toLocaleDateString('es-MX'); }catch(e){ return ''; } }
+        async function cargar(){
+            document.getElementById('loader').style.display='block';
+            document.getElementById('tabla').style.display='none';
+            document.getElementById('empty').style.display='none';
+            try {
+                const snap = await db.collection('matrices').orderBy('fecha_creacion','desc').get();
+                todas = []; snap.forEach(d => todas.push(Object.assign({id:d.id}, d.data())));
+                render();
+            } catch(e){ document.getElementById('loader').innerText='Error al cargar: '+e.message; }
+        }
+        function render(){
+            const q = document.getElementById('buscar').value.toLowerCase();
+            const fil = todas.filter(m => ((m.obra||'')+' '+(m.analisis||'')+' '+(m.cliente||'')).toLowerCase().includes(q));
+            const tb = document.getElementById('tbody'); tb.innerHTML='';
+            if (fil.length===0){ document.getElementById('loader').style.display='none'; document.getElementById('tabla').style.display='none'; document.getElementById('empty').style.display='block'; return; }
+            fil.forEach(m => {
+                const pu = (m.totales && m.totales.PU) ? '$'+Number(m.totales.PU).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td>'+esc(m.obra)+'</td><td>'+esc(m.analisis||m.analisisNo||'')+'</td><td>'+esc(m.cliente)+'</td><td>'+fmt(m.fecha_creacion)+'</td><td class="pu">'+pu+'</td>'+
+                    '<td class="acciones"><button class="btn btn-azul btn-sm" data-abrir="'+m.id+'"><i data-lucide="pencil"></i> Abrir</button><button class="btn btn-rojo btn-sm" data-elim="'+m.id+'"><i data-lucide="trash-2"></i></button></td>';
+                tb.appendChild(tr);
+            });
+            tb.querySelectorAll('[data-abrir]').forEach(b => b.addEventListener('click', () => abrir(b.dataset.abrir)));
+            tb.querySelectorAll('[data-elim]').forEach(b => b.addEventListener('click', () => eliminar(b.dataset.elim)));
+            document.getElementById('loader').style.display='none';
+            document.getElementById('tabla').style.display='table';
+            document.getElementById('empty').style.display='none';
+            lucide.createIcons();
+        }
+        function esc(s){ return String(s==null?'':s).replace(/</g,'&lt;'); }
+        async function abrir(id){
+            const m = todas.find(x => x.id===id); if(!m) return;
+            localStorage.setItem('matriz_editar', JSON.stringify(m));
+            window.location.href = 'nueva_matriz.html';
+        }
+        function eliminar(id){
+            mostrarConfirmLoreto('¿Eliminar esta matriz?', async () => {
+                try { await db.collection('matrices').doc(id).delete(); mostrarAlertaLoreto('Matriz eliminada.', 'success'); cargar(); }
+                catch(e){ mostrarAlertaLoreto('Error: '+e.message, 'error'); }
+            });
+        }
+        document.getElementById('buscar').addEventListener('input', render);
+        document.getElementById('btn-recargar').addEventListener('click', cargar);
+        cargar();
+    </script>
+</body>
+</html>
