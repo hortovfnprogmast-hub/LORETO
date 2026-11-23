@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Matriz | Loreto Ingeniería</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="loreto-common.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #263fa4;
+            --light-blue: #eef2ff;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success-green: #10b981;
+            --teal: #14a981;
+            --rojo: #dc2626;
+        }
+        body { margin:0; font-family:'Inter',sans-serif; background:var(--bg-color); display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        .header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:white; border-bottom:1px solid var(--border-color); z-index:50; }
+        .header-left { display:flex; align-items:center; gap:15px; }
+        .menu-btn { background:none; border:none; cursor:pointer; color:var(--text-main); padding:5px; }
+        .header-title { margin:0; font-size:15px; font-weight:700; color:var(--primary-blue); }
+        .header-right { display:flex; align-items:center; gap:12px; }
+        .user-initial { width:35px; height:35px; border-radius:50%; background:var(--primary-blue); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; }
+        .main-layout { display:flex; flex:1; overflow:hidden; }
+        .sidebar { width:260px; background:white; border-right:1px solid var(--border-color); overflow-y:auto; transition:transform .3s ease; display:flex; flex-direction:column; }
+        @media (max-width:768px){ .sidebar{ position:fixed; height:calc(100vh - 60px); transform:translateX(-100%); z-index:40; } .sidebar.open{ transform:translateX(0);} .header-title{ display:none;} }
+        .content { flex:1; overflow-y:auto; padding:18px; }
+        .matriz-card { background:white; border-radius:14px; padding:22px; box-shadow:0 4px 18px rgba(0,0,0,.06); border:1px solid var(--border-color); max-width:1100px; margin:0 auto; }
+        .matriz-card h2 { margin:0 0 4px 0; color:var(--primary-blue); font-size:18px; }
+        .matriz-card .sub { color:var(--text-muted); font-size:12px; margin:0 0 16px 0; }
+        .bloque { margin-bottom:20px; padding:14px; border:1px solid var(--border-color); border-radius:10px; background:#fcfcfd; }
+        .bloque h3 { margin:0 0 12px 0; font-size:13px; color:var(--primary-blue); text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border-color); padding-bottom:6px; }
+        .grid-encab { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+        .field { display:flex; flex-direction:column; gap:3px; }
+        .field label { font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; }
+        .field input, .field textarea, .field select { padding:8px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; font-family:inherit; outline:none; background:white; }
+        .field input:focus, .field textarea:focus { border-color:var(--primary-blue); }
+        .field.full { grid-column:1 / -1; }
+        .field textarea { resize:vertical; min-height:60px; }
+        .buscador { position:relative; margin-bottom:10px; }
+        .buscador input { width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; box-sizing:border-box; }
+        #resultados-concepto { position:absolute; top:40px; left:0; right:0; background:white; border:1px solid var(--border-color); border-radius:6px; max-height:240px; overflow-y:auto; z-index:30; box-shadow:0 6px 18px rgba(0,0,0,.12); display:none; }
+        .res-item { padding:8px 12px; font-size:12px; cursor:pointer; border-bottom:1px solid #f1f5f9; }
+        .res-item:hover { background:var(--light-blue); }
+        .res-item small { color:var(--text-muted); }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:12px; }
+        thead th { background:#217346; color:white; padding:8px; text-align:left; font-size:11px; }
+        tbody td { padding:4px; border-bottom:1px solid var(--border-color); }
+        tbody td input, tbody td select { width:100%; padding:5px; border:1px solid #e2e8f0; border-radius:4px; font-size:12px; box-sizing:border-box; background:white; }
+        tbody td.imp { text-align:right; font-weight:600; color:var(--success-green); }
+        tbody td.pct { text-align:right; color:var(--text-muted); }
+        .btn-del { background:var(--rojo); color:white; border:none; border-radius:4px; padding:5px 7px; cursor:pointer; font-size:11px; }
+        .btn-add { background:var(--light-blue); color:var(--primary-blue); border:1px solid #c7d2fe; border-radius:6px; padding:8px 14px; cursor:pointer; font-weight:600; font-size:12px; margin-top:8px; }
+        .btn-add:hover { background:#dbe4ff; }
+        .resumen { background:var(--light-blue); border-color:#c7d2fe; }
+        .resumen-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+        .res-card { background:white; padding:10px 12px; border-radius:8px; border:1px solid var(--border-color); }
+        .res-card .lbl { font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700; }
+        .res-card .val { font-size:16px; font-weight:800; color:var(--primary-blue); }
+        .res-card.total .val { color:var(--success-green); }
+        .res-card.letra { grid-column:1 / -1; }
+        .res-card.letra .val { font-size:13px; color:var(--text-main); font-weight:700; }
+        .acciones { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+        .btn { padding:11px 18px; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:13px; color:white; display:inline-flex; align-items:center; gap:7px; }
+        .btn:disabled { opacity:.5; cursor:not-allowed; }
+        .btn-azul { background:var(--primary-blue); } .btn-azul:hover:not(:disabled){ background:#1a2a6e; }
+        .btn-teal { background:var(--teal); } .btn-teal:hover:not(:disabled){ background:#108c6a; }
+        .btn-rojo { background:var(--rojo); } .btn-rojo:hover:not(:disabled){ background:#b91c1c; }
+        .btn-gris { background:#64748b; } .btn-gris:hover:not(:disabled){ background:#475569; }
+
+        /* ===== VISTA DE IMPRESIÓN / PDF ===== */
+        #pdf-view { display:none; }
+        .pdf-doc { font-family:'Arial', sans-serif; color:#000; background:#fff; padding:12px 14px; box-sizing:border-box; }
+        .pdf-encab { border:2px solid #000; padding:10px; position:relative; }
+        .pdf-encab .emp { text-align:center; font-weight:bold; text-decoration:underline; font-size:12px; margin-bottom:6px; }
+        .pdf-encab .cli { font-weight:bold; font-size:14px; }
+        .pdf-encab .small { font-size:7px; }
+        .pdf-encab .fila { display:flex; justify-content:space-between; font-size:8px; margin-top:3px; }
+        .pdf-encab .col { display:flex; gap:4px; }
+        .pdf-encab .pres { text-align:right; }
+        .pdf-encab .pres b { font-weight:bold; text-decoration:underline; font-size:9px; }
+        .pdf-titulo { text-align:center; font-weight:bold; font-size:10px; border-top:1px solid #000; border-bottom:1px solid #000; padding:4px; margin:8px 0 0 0; }
+        .pdf-tabla { width:100%; border-collapse:collapse; font-size:8px; }
+        .pdf-tabla th { background:#D9D9D9; font-weight:bold; text-align:center; padding:4px; border:1px solid #000; }
+        .pdf-tabla td { padding:3px 4px; border-bottom:1px solid #ccc; }
+        .pdf-tabla td.r { text-align:right; } .pdf-tabla td.c { text-align:center; }
+        .pdf-tabla tr.bloque-label td { font-weight:bold; border-top:1px solid #000; }
+        .pdf-tabla tr.sub td { font-weight:bold; border-top:1px solid #000; }
+        .pdf-tabla tr.sub td.r { border-bottom:1px solid #000; }
+        .pdf-tabla tr.total td { font-weight:bold; border-bottom:3px double #000; }
+        .pdf-desc { font-size:7px; text-transform:uppercase; padding:6px 4px; }
+        .pdf-letra { font-size:8px; font-style:italic; padding:5px 0; }
+        .pdf-pie { text-align:center; font-size:8px; margin-top:18px; }
+
+        @media print {
+            body * { visibility:hidden; }
+            #pdf-view, #pdf-view * { visibility:visible; }
+            #pdf-view { display:block !important; position:absolute; left:0; top:0; width:100%; }
+            .content { overflow:visible !important; }
+            @page { size: landscape; margin: 10mm 8mm; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height:35px; width:auto; object-fit:contain;">
+            <h1 class="header-title">Nueva Matriz — Análisis de Precios</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="content">
+            <div class="matriz-card">
+                <h2>Nueva Matriz · Análisis de Precios Unitarios</h2>
+                <p class="sub">Captura el encabezado y los insumos. El sistema calcula costos directos, indirecto, precio unitario y la cantidad con letra. Puedes guardar la matriz o exportarla a Excel y PDF.</p>
+
+                <!-- ENCABEZADO -->
+                <section class="bloque">
+                    <h3>Encabezado</h3>
+                    <div class="grid-encab">
+                        <div class="field"><label>Cliente</label><input id="m-cliente" value="SALUD DIGNA A. C."></div>
+                        <div class="field full"><label>Domicilio del cliente</label><input id="m-domicilio" placeholder="Calle, número, colonia, C.P., municipio, estado"></div>
+                        <div class="field"><label>Concurso No.</label><input id="m-concurso" placeholder="Ej. 2025041662 L"></div>
+                        <div class="field full"><label>Obra</label><input id="m-obra" placeholder="Nombre de la obra"></div>
+                        <div class="field full"><label>Lugar</label><input id="m-lugar" placeholder="Dirección de la obra"></div>
+                        <div class="field"><label>Fecha</label><input type="date" id="m-fecha"></div>
+                        <div class="field"><label>Inicio Obra</label><input type="date" id="m-inicio"></div>
+                        <div class="field"><label>Fin Obra</label><input type="date" id="m-fin"></div>
+                        <div class="field"><label>Duración</label><input id="m-duracion" placeholder="Ej. 14/05/2025"></div>
+                        <div class="field"><label>Partida</label><input id="m-partida" placeholder="Ej. EXTRA-HIDROSANITARIO"></div>
+                        <div class="field"><label>Análisis (código)</label><input id="m-analisis" placeholder="Ej. INS-VRC-500"></div>
+                        <div class="field"><label>Análisis No.</label><input id="m-analisis-no" placeholder="No. de análisis"></div>
+                        <div class="field"><label>% Indirecto (CI)</label><input type="number" step="any" id="m-indirecto" value="0.24"></div>
+                    </div>
+                    <div class="field full" style="margin-top:10px;"><label>Descripción del concepto</label><textarea id="m-descripcion" placeholder="SUMINISTRO E INSTALACIÓN DE..."></textarea></div>
+                </section>
+
+                <!-- INSUMOS -->
+                <section class="bloque">
+                    <h3>Insumos / Conceptos</h3>
+                    <div class="buscador">
+                        <input id="buscador-concepto" placeholder="Buscar en Base Conceptos (código o concepto) para autollenar...">
+                        <div id="resultados-concepto"></div>
+                    </div>
+                    <div class="table-wrap">
+                    <table id="tabla-insumos">
+                        <thead>
+                            <tr>
+                                <th style="width:13%">Tipo</th>
+                                <th style="width:11%">Código</th>
+                                <th>Concepto</th>
+                                <th style="width:8%">Unidad</th>
+                                <th style="width:9%">P.U.</th>
+                                <th style="width:8%">Cantidad</th>
+                                <th style="width:10%">Importe</th>
+                                <th style="width:7%">%</th>
+                                <th style="width:4%"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-insumos"></tbody>
+                    </table>
+                    </div>
+                    <button class="btn-add" id="btn-agregar-insumo"><i data-lucide="plus"></i> Agregar insumo</button>
+                </section>
+
+                <!-- RESUMEN -->
+                <section class="bloque resumen">
+                    <h3>Resumen calculado</h3>
+                    <div class="resumen-grid" id="resumen-grid"></div>
+                </section>
+
+                <!-- ACCIONES -->
+                <div class="acciones">
+                    <button class="btn btn-teal" id="btn-guardar"><i data-lucide="save"></i> Guardar matriz</button>
+                    <button class="btn btn-azul" id="btn-excel"><i data-lucide="file-spreadsheet"></i> Exportar Excel</button>
+                    <button class="btn btn-azul" id="btn-pdf"><i data-lucide="printer"></i> Exportar PDF / Imprimir</button>
+                    <button class="btn btn-gris" id="btn-vista-previa"><i data-lucide="eye"></i> Vista previa PDF</button>
+                    <button class="btn btn-rojo" id="btn-limpiar"><i data-lucide="trash-2"></i> Limpiar</button>
+                </div>
+            </div>
+
+            <!-- VISTA DE IMPRESIÓN (oculta en pantalla) -->
+            <div id="pdf-view"></div>
+        </main>
+    </div>
+
+    <script>
+        // ====== FIREBASE ======
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8",
+            authDomain: "loretoapp-2ca14.firebaseapp.com",
+            projectId: "loretoapp-2ca14",
+            storageBucket: "loretoapp-2ca14.firebasestorage.app",
+            messagingSenderId: "794212467801",
+            appId: "1:794212467801:web:f0bf6fd01579f0aec35d48"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // ====== MENU + USUARIO ======
+        fetch('menu.html').then(r => r.text()).then(html => {
+            document.getElementById('sidebar').innerHTML = html;
+            lucide.createIcons();
+            filtrarMenuPorPrivilegio();
+            const lm = document.getElementById('link-nueva-matriz'); if (lm) lm.classList.add('active');
+        });
+        initLogoutFlotante(); lucide.createIcons();
+        const nombreUsuario = localStorage.getItem('nombre') || 'Usuario';
+        document.getElementById('user-initial').innerText = nombreUsuario.charAt(0).toUpperCase();
+        document.getElementById('toggle-menu').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+
+        // ====== ESTADO ======
+        let insumos = []; // {tipo, codigo, concepto, unidad, pu, cantidad}
+        const TIPOS = ['MATERIALES', 'MANO DE OBRA', 'EQUIPO Y HERRAMIENTA'];
+
+        // ====== LETRAS (port de la macro VBA) ======
+        const UNI = ["","UN","DOS","TRES","CUATRO","CINCO","SEIS","SIETE","OCHO","NUEVE","DIEZ","ONCE","DOCE","TRECE","CATORCE","QUINCE","DIECISEIS","DIECISIETE","DIECIOCHO","DIECINUEVE","VEINTE","VEINTIUN","VEINTIDOS","VEINTITRES","VEINTICUATRO","VEINTICINCO","VEINTISEIS","VEINTISIETE","VEINTIOCHO","VEINTINUEVE"];
+        const DEC = ["","DIEZ","VEINTE","TREINTA","CUARENTA","CINCUENTA","SESENTA","SETENTA","OCHENTA","NOVENTA"];
+        const CEN = ["","CIENTO","DOSCIENTOS","TRESCIENTOS","CUATROCIENTOS","QUINIENTOS","SEISCIENTOS","SETECIENTOS","OCHOCIENTOS","NOVECIENTOS"];
+        function cientosALetras(n){
+            let cen = Math.floor(n/100); n -= cen*100;
+            let dec = Math.floor(n/10); let uni = n - dec*10;
+            let t = "";
+            if (cen===1 && dec===0 && uni===0) t = "CIEN ";
+            else t = CEN[cen] + " ";
+            if (n < 30) t += UNI[n] + " ";
+            else { t += DEC[dec] + " "; if (uni>0) t += "Y " + UNI[uni] + " "; }
+            return t.trim();
+        }
+        function letrasBase(n){
+            let millones = Math.floor(n/1000000); n -= millones*1000000;
+            let miles = Math.floor(n/1000); let cientos = n - miles*1000;
+            let t = "";
+            if (millones>0) t += (millones===1 ? "UN MILLON " : cientosALetras(millones) + " MILLONES ");
+            if (miles>0) t += (miles===1 ? "UN MIL " : cientosALetras(miles) + " MIL ");
+            if (cientos>0) t += cientosALetras(cientos);
+            return t;
+        }
+        function letrasVBA(numero){
+            let n = Number(numero) || 0;
+            let entero = Math.floor(Math.round(n*100)/100);
+            let dec = Math.round((n - entero)*100);
+            if (dec < 0) dec += 100;
+            let decStr = String(dec).padStart(2,'0');
+            let texto = entero === 0 ? "CERO" : letrasBase(entero);
+            return "(*" + texto.trim() + " PESOS " + decStr + "/100 M.N. *)";
+        }
+
+        // ====== INSUMOS ======
+        function agregarInsumo(datos){
+            insumos.push(Object.assign({ tipo:'MATERIALES', codigo:'', concepto:'', unidad:'', pu:0, cantidad:0 }, datos || {}));
+            renderInsumos();
+        }
+        function eliminarInsumo(idx){ insumos.splice(idx,1); renderInsumos(); }
+        function renderInsumos(){
+            const tb = document.getElementById('tbody-insumos');
+            tb.innerHTML = '';
+            insumos.forEach((it, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td><select data-f="tipo">' + TIPOS.map(t=>'<option'+(it.tipo===t?' selected':'')+'>'+t+'</option>').join('') + '</select></td>' +
+                    '<td><input data-f="codigo" value="' + esc(it.codigo) + '"></td>' +
+                    '<td><input data-f="concepto" value="' + esc(it.concepto) + '"></td>' +
+                    '<td><input data-f="unidad" value="' + esc(it.unidad) + '"></td>' +
+                    '<td><input type="number" step="any" data-f="pu" value="' + (it.pu||0) + '"></td>' +
+                    '<td><input type="number" step="any" data-f="cantidad" value="' + (it.cantidad||0) + '"></td>' +
+                    '<td class="imp"></td><td class="pct"></td>' +
+                    '<td><button class="btn-del" data-del="' + idx + '"><i data-lucide="x"></i></button></td>';
+                tb.appendChild(tr);
+            });
+            // eventos
+            tb.querySelectorAll('input,select').forEach(el => {
+                el.addEventListener('input', () => {
+                    const tr = el.closest('tr'); const idx = Array.from(tb.children).indexOf(tr);
+                    const f = el.dataset.f; let v = el.value;
+                    if (f==='pu' || f==='cantidad') v = parseFloat(v) || 0;
+                    insumos[idx][f] = v;
+                    recalcular();
+                });
+            });
+            tb.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => eliminarInsumo(parseInt(b.dataset.del))));
+            lucide.createIcons();
+            recalcular();
+        }
+        function esc(s){ return String(s==null?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+        // ====== CÁLCULOS ======
+        function calcular(){
+            let subs = { 'MATERIALES':0, 'MANO DE OBRA':0, 'EQUIPO Y HERRAMIENTA':0 };
+            insumos.forEach(it => { it._importe = (Number(it.pu)||0) * (Number(it.cantidad)||0); subs[it.tipo] += it._importe; });
+            const CD = subs['MATERIALES'] + subs['MANO DE OBRA'] + subs['EQUIPO Y HERRAMIENTA'];
+            const indPct = parseFloat(document.getElementById('m-indirecto').value) || 0;
+            const CI = CD * indPct;
+            const PU = CD + CI;
+            insumos.forEach(it => { it._pct = CD>0 ? it._importe / CD : 0; });
+            return { subs, CD, CI, PU, indPct, letra: letrasVBA(PU) };
+        }
+        function recalcular(){
+            const c = calcular();
+            // importe y % por fila
+            const filas = document.querySelectorAll('#tbody-insumos tr');
+            insumos.forEach((it, i) => {
+                if (filas[i]) {
+                    filas[i].children[6].innerText = '$' + (it._importe||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+                    filas[i].children[7].innerText = ((it._pct||0)*100).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+                }
+            });
+            // resumen
+            const rg = document.getElementById('resumen-grid');
+            const card = (lbl, val, cls='') => '<div class="res-card '+cls+'"><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div></div>';
+            const mx = v => '$' + Number(v).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+            rg.innerHTML =
+                card('Subtotal Materiales', mx(c.subs['MATERIALES'])) +
+                card('Subtotal Mano de Obra', mx(c.subs['MANO DE OBRA'])) +
+                card('Subtotal Equipo', mx(c.subs['EQUIPO Y HERRAMIENTA'])) +
+                card('(CD) Costo Directo', mx(c.CD)) +
+                card('(CI) Indirecto ('+(c.indPct*100).toFixed(2)+'%)', mx(c.CI)) +
+                card('Precio Unitario', mx(c.PU), 'total') +
+                '<div class="res-card letra"><div class="lbl">Cantidad con letra</div><div class="val">' + esc(c.letra) + '</div></div>';
+        }
+
+        // ====== OBTENER MATRIZ ======
+        function obtenerMatriz(){
+            const c = calcular();
+            return {
+                cliente: val('m-cliente'), domicilio: val('m-domicilio'), concurso: val('m-concurso'),
+                obra: val('m-obra'), lugar: val('m-lugar'), fecha: val('m-fecha'),
+                inicio: val('m-inicio'), fin: val('m-fin'), duracion: val('m-duracion'),
+                partida: val('m-partida'), analisis: val('m-analisis'), analisisNo: val('m-analisis-no'),
+                indirecto: c.indPct, descripcion: val('m-descripcion'),
+                insumos: insumos.map(it => ({ tipo:it.tipo, codigo:it.codigo, concepto:it.concepto, unidad:it.unidad, pu:Number(it.pu)||0, cantidad:Number(it.cantidad)||0 })),
+                totales: { subs:c.subs, CD:c.CD, CI:c.CI, PU:c.PU, letra:c.letra },
+                creador: localStorage.getItem('nombre') || '',
+                fecha_creacion: firebase.firestore.FieldValue.serverTimestamp()
+            };
+        }
+        function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+        // ====== GUARDAR EN FIRESTORE ======
+        document.getElementById('btn-guardar').addEventListener('click', async () => {
+            const m = obtenerMatriz();
+            if (!m.obra || insumos.length === 0) { mostrarAlertaLoreto('Captura al menos la obra y un insumo antes de guardar.', 'warning'); return; }
+            try {
+                const ref = await db.collection('matrices').add(m);
+                mostrarAlertaLoreto('Matriz guardada en Base Matrices.\nID: ' + ref.id, 'success');
+            } catch (e) { mostrarAlertaLoreto('Error al guardar: ' + e.message, 'error'); }
+        });
+
+        // ====== BUSCADOR DE CONCEPTOS ======
+        let timerBuscador = null;
+        document.getElementById('buscador-concepto').addEventListener('input', (e) => {
+            clearTimeout(timerBuscador);
+            const q = e.target.value.trim();
+            const res = document.getElementById('resultados-concepto');
+            if (q.length < 2) { res.style.display='none'; return; }
+            timerBuscador = setTimeout(async () => {
+                try {
+                    const snap = await db.collection('conceptos').limit(300).get();
+                    const ql = q.toLowerCase();
+                    const items = [];
+                    snap.forEach(d => { const c = d.data(); const txt = ((c.codigo||'')+' '+(c.concepto||'')).toLowerCase(); if (txt.includes(ql)) items.push(c); });
+                    res.innerHTML = items.slice(0,30).map(c => '<div class="res-item" data-codigo="'+esc(c.codigo)+'"><b>'+esc(c.codigo)+'</b> '+esc(c.concepto)+' <small>'+esc(c.unidad)+' · $'+(c.pu||0)+'</small></div>').join('');
+                    res.style.display = items.length ? 'block' : 'none';
+                    res.querySelectorAll('.res-item').forEach(el => el.addEventListener('click', () => {
+                        const c = items.find(x => x.codigo === el.dataset.codigo);
+                        agregarInsumo({ tipo:c.tipo||'MATERIALES', codigo:c.codigo||'', concepto:c.concepto||'', unidad:c.unidad||'', pu:Number(c.pu)||0, cantidad:1 });
+                        e.target.value=''; res.style.display='none';
+                    }));
+                } catch (err) { res.style.display='none'; }
+            }, 250);
+        });
+        document.addEventListener('click', (e) => { if (!e.target.closest('.buscador')) document.getElementById('resultados-concepto').style.display='none'; });
+
+        // ====== AGREGAR / LIMPIAR ======
+        document.getElementById('btn-agregar-insumo').addEventListener('click', () => agregarInsumo());
+        document.getElementById('btn-limpiar').addEventListener('click', () => {
+            mostrarConfirmLoreto('¿Limpiar todo el formulario?', () => {
+                insumos = []; renderInsumos();
+                document.querySelectorAll('.field input, .field textarea').forEach(el => { if (el.id==='m-cliente') el.value='SALUD DIGNA A. C.'; else if (el.id==='m-indirecto') el.value='0.24'; else el.value=''; });
+                recalcular();
+            });
+        });
+
+        // ====== VISTA PDF (HTML de impresión) ======
+        function fmtFecha(s){ if(!s) return ''; const d = new Date(s+'T00:00:00'); return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+        function renderVistaPDF(){
+            const m = obtenerMatriz();
+            const grupos = TIPOS.map(t => ({ tipo:t, items: m.insumos.filter(i => i.tipo===t) }));
+            const mx = v => '$ ' + Number(v).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:4});
+            const mx2 = v => '$ ' + Number(v).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+            const pct = v => (v*100).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+
+            let filas = '';
+            grupos.forEach(g => {
+                filas += '<tr class="bloque-label"><td colspan="2">'+g.tipo+'</td><td class="c"></td><td class="c">0</td><td></td><td></td><td></td><td></td></tr>';
+                g.items.forEach(it => {
+                    const imp = (Number(it.pu)||0)*(Number(it.cantidad)||0);
+                    const p = m.totales.CD>0 ? imp/m.totales.CD : 0;
+                    filas += '<tr><td>'+esc(it.codigo)+'</td><td>'+esc(it.concepto)+'</td><td class="c">'+esc(it.unidad)+'</td><td class="r">'+mx2(it.pu)+'</td><td class="c">*</td><td class="r">'+(Number(it.cantidad)||0).toLocaleString('es-MX',{minimumFractionDigits:4,maximumFractionDigits:4})+'</td><td class="r">'+mx2(imp)+'</td><td class="r">'+pct(p)+'</td></tr>';
+                });
+                filas += '<tr class="sub"><td>SUBTOTAL:</td><td>'+g.tipo+'</td><td></td><td class="c">0</td><td></td><td></td><td class="r">'+mx2(m.totales.subs[g.tipo])+'</td><td class="r">'+pct(m.totales.CD>0?m.totales.subs[g.tipo]/m.totales.CD:0)+'</td></tr>';
+            });
+
+            return '<div class="pdf-doc">' +
+                '<div class="pdf-encab">' +
+                    '<div class="emp">LORETO INGENIERIA CONSTRUCCION EDIFICACION</div>' +
+                    '<div class="fila"><div class="col"><div class="small">Cliente:</div><div class="cli">'+esc(m.cliente)+'</div></div><div class="pres"><b>PRESUPUESTO</b><div class="small">'+esc(m.concurso)+'</div></div></div>' +
+                    '<div class="small">'+esc(m.domicilio)+'</div>' +
+                    '<div class="fila"><div class="col"><div class="small">Concurso No.: <b>'+esc(m.concurso)+'</b></div></div><div class="col"><div class="small">Duración: <b>'+esc(m.duracion||fmtFecha(m.inicio))+'</b></div></div></div>' +
+                    '<div class="fila"><div class="col"><div class="small">Obra: <b>'+esc(m.obra)+'</b></div></div><div class="col"><div class="small">Fecha: <b>'+fmtFecha(m.fecha)+'</b></div></div></div>' +
+                    '<div class="fila"><div class="col"><div class="small">Inicio Obra: <b>'+fmtFecha(m.inicio)+'</b></div><div class="small">Fin Obra: <b>'+fmtFecha(m.fin)+'</b></div></div></div>' +
+                    '<div class="small">Lugar: '+esc(m.lugar)+'</div>' +
+                '</div>' +
+                '<div class="pdf-titulo">ANÁLISIS DE PRECIOS UNITARIOS</div>' +
+                '<table class="pdf-tabla"><thead><tr><th>Código</th><th>Concepto</th><th>Unidad</th><th>P. Unitario</th><th>Op.</th><th>Cantidad</th><th>Importe</th><th>%</th></tr></thead><tbody>' +
+                    '<tr><td><b>Partida:</b></td><td>'+esc(m.partida)+'</td><td></td><td></td><td></td><td>Análisis No.:</td><td>'+esc(m.analisisNo)+'</td><td></td></tr>' +
+                    '<tr><td><b>Análisis:</b></td><td>'+esc(m.analisis)+'</td><td></td><td></td><td></td><td class="r">1</td><td class="r"><b>'+mx2(m.totales.PU)+'</b></td><td></td></tr>' +
+                    '<tr><td colspan="8" class="pdf-desc">'+esc(m.descripcion.toUpperCase())+'</td></tr>' +
+                    filas +
+                    '<tr class="sub"><td colspan="6">(CD) Costo directo</td><td class="r">'+mx2(m.totales.CD)+'</td><td class="r">'+pct(1)+'</td></tr>' +
+                    '<tr class="sub"><td colspan="5">(CI) Indirecto ÚNICO</td><td class="r">'+pct(m.indirecto)+'</td><td class="r">'+mx2(m.totales.CI)+'</td><td></td></tr>' +
+                    '<tr class="total"><td colspan="6">PRECIO UNITARIO = (CD + CI)</td><td class="r">'+mx2(m.totales.PU)+'</td><td></td></tr>' +
+                '</tbody></table>' +
+                '<div class="pdf-letra">'+esc(m.totales.letra)+'</div>' +
+                '<div class="pdf-pie">DIRECTOR GENERAL: INGENIERO JULIO CESAR RODRIGUEZ</div>' +
+            '</div>';
+        }
+        document.getElementById('btn-vista-previa').addEventListener('click', () => {
+            const v = document.getElementById('pdf-view');
+            v.innerHTML = renderVistaPDF();
+            v.style.display = 'block';
+            v.scrollIntoView({behavior:'smooth'});
+            mostrarAlertaLoreto('Vista previa cargada abajo. Usa "Exportar PDF / Imprimir" para generar el archivo PDF.', 'info');
+        });
+        document.getElementById('btn-pdf').addEventListener('click', () => {
+            const v = document.getElementById('pdf-view');
+            v.innerHTML = renderVistaPDF();
+            v.style.display = 'block';
+            setTimeout(() => { window.print(); }, 250);
+        });
+
+        // ====== EXPORTAR EXCEL (ExcelJS) ======
+        document.getElementById('btn-excel').addEventListener('click', async () => {
+            const m = obtenerMatriz();
+            if (insumos.length === 0) { mostrarAlertaLoreto('Agrega al menos un insumo.', 'warning'); return; }
+            const btn = document.getElementById('btn-excel'); const old = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = 'Generando...';
+            try {
+                const ExcelJS = window.ExcelJS;
+                const wb = new ExcelJS.Workbook();
+                const ws = wb.addWorksheet('Matriz', {
+                    pageSetup: { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1, paperSize:1, horizontalCentered:true },
+                    margins: { left:0.4, right:0.3, top:0.4, bottom:0.4, header:0.2, footer:0.2 }
+                });
+                ws.columns = [
+                    { width: 14 },{ width: 52 },{ width: 10 },{ width: 13 },{ width: 5 },{ width: 11 },{ width: 13 },{ width: 9 }
+                ];
+                const thin = { style:'thin', color:{argb:'FF000000'} };
+                const med = { style:'medium', color:{argb:'FF000000'} };
+                const double = { style:'double', color:{argb:'FF000000'} };
+                const borderAll = { top:med, bottom:med, left:med, right:med };
+                const grayFill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFD9D9D9'} };
+                const fontBold = { bold:true, size:8, name:'Arial' };
+                const fontReg = { size:7, name:'Arial' };
+
+                let r = 1;
+                // Título empresa
+                ws.mergeCells(`A${r}:H${r}`);
+                const cEmp = ws.getCell(`A${r}`); cEmp.value = 'LORETO INGENIERIA CONSTRUCCION EDIFICACION';
+                cEmp.font = { bold:true, size:11, name:'Arial' }; cEmp.alignment = { horizontal:'center' };
+                for (let i=1;i<=8;i++){ ws.getCell(`${String.fromCharCode(64+i)}${r}`).border = { top:med, left: i===1?med:undefined, right: i===8?med:undefined }; }
+                r++;
+                // Cliente + PRESUPUESTO
+                ws.getCell(`A${r}`).value = 'Cliente:'; ws.getCell(`A${r}`).font = fontReg;
+                ws.mergeCells(`B${r}:D${r}`); ws.getCell(`B${r}`).value = m.cliente; ws.getCell(`B${r}`).font = { bold:true, size:12, name:'Arial' };
+                ws.mergeCells(`F${r}:H${r}`); const cP = ws.getCell(`F${r}`); cP.value = 'PRESUPUESTO'; cP.font = { bold:true, size:9, name:'Arial' }; cP.alignment = { horizontal:'center' };
+                r++;
+                // domicilio
+                ws.mergeCells(`A${r}:H${r}`); ws.getCell(`A${r}`).value = m.domicilio; ws.getCell(`A${r}`).font = fontReg;
+                r++;
+                // Concurso / Duración
+                ws.getCell(`A${r}`).value = 'Concurso No.:'; ws.getCell(`A${r}`).font = fontReg;
+                ws.mergeCells(`B${r}:C${r}`); ws.getCell(`B${r}`).value = m.concurso; ws.getCell(`B${r}`).font = fontBold;
+                ws.getCell(`E${r}`).value = 'Duración:'; ws.getCell(`E${r}`).font = fontReg;
+                ws.mergeCells(`F${r}:H${r}`); ws.getCell(`F${r}`).value = m.duracion; ws.getCell(`F${r}`).font = fontBold;
+                r++;
+                // Obra / Fecha
+                ws.getCell(`A${r}`).value = 'Obra:'; ws.getCell(`A${r}`).font = fontReg;
+                ws.mergeCells(`B${r}:E${r}`); ws.getCell(`B${r}`).value = m.obra; ws.getCell(`B${r}`).font = fontBold;
+                ws.getCell(`F${r}`).value = 'Fecha:'; ws.getCell(`F${r}`).font = fontReg;
+                ws.mergeCells(`G${r}:H${r}`); ws.getCell(`G${r}`).value = m.fecha; ws.getCell(`G${r}`).font = fontBold;
+                r++;
+                // Inicio / Fin
+                ws.getCell(`E${r}`).value = 'Inicio Obra:'; ws.getCell(`E${r}`).font = fontReg;
+                ws.mergeCells(`F${r}:G${r}`); ws.getCell(`F${r}`).value = m.inicio; ws.getCell(`F${r}`).font = fontBold;
+                ws.getCell(`H${r}`).value = ''; 
+                r++;
+                ws.getCell(`E${r}`).value = 'Fin Obra:'; ws.getCell(`E${r}`).font = fontReg;
+                ws.mergeCells(`F${r}:G${r}`); ws.getCell(`F${r}`).value = m.fin; ws.getCell(`F${r}`).font = fontBold;
+                r++;
+                // Lugar
+                ws.getCell(`A${r}`).value = 'Lugar:'; ws.getCell(`A${r}`).font = fontReg;
+                ws.mergeCells(`B${r}:H${r}`); ws.getCell(`B${r}`).value = m.lugar; ws.getCell(`B${r}`).font = fontReg;
+                // borde del bloque encabezado (A1 hasta H{r})
+                for (let row=1; row<=r; row++){
+                    for (let col=1; col<=8; col++){
+                        const addr = `${String.fromCharCode(64+col)}${row}`;
+                        const cell = ws.getCell(addr);
+                        const top = row===1?med:undefined;
+                        const bottom = row===r?med:undefined;
+                        const left = col===1?med:undefined;
+                        const right = col===8?med:undefined;
+                        cell.border = { top, bottom, left, right };
+                    }
+                }
+                r++;
+                // Título ANÁLISIS
+                ws.mergeCells(`A${r}:H${r}`);
+                const cT = ws.getCell(`A${r}`); cT.value = 'ANÁLISIS DE PRECIOS UNITARIOS';
+                cT.font = { bold:true, size:10, name:'Arial' }; cT.alignment = { horizontal:'center' };
+                cT.border = { top:med, bottom:med };
+                r++;
+                // Encabezado de columnas (gris)
+                const heads = ['Código','Concepto','Unidad','P. Unitario','Op.','Cantidad','Importe','%'];
+                heads.forEach((h,i) => {
+                    const c = ws.getCell(`${String.fromCharCode(65+i)}${r}`);
+                    c.value = h; c.font = fontBold; c.fill = grayFill;
+                    c.alignment = { horizontal: i===1?'left':'center', vertical:'middle' };
+                    c.border = { top:thin, bottom:thin, left:thin, right:thin };
+                });
+                ws.getRow(r).height = 16;
+                r++;
+                // Partida / Análisis
+                ws.getCell(`A${r}`).value = 'Partida:'; ws.getCell(`A${r}`).font = fontBold;
+                ws.mergeCells(`B${r}:D${r}`); ws.getCell(`B${r}`).value = m.partida;
+                ws.getCell(`F${r}`).value = 'Análisis No.:'; ws.getCell(`F${r}`).font = fontBold;
+                ws.mergeCells(`G${r}:H${r}`); ws.getCell(`G${r}`).value = m.analisisNo;
+                r++;
+                ws.getCell(`A${r}`).value = 'Análisis:'; ws.getCell(`A${r}`).font = fontBold;
+                ws.mergeCells(`B${r}:E${r}`); ws.getCell(`B${r}`).value = m.analisis;
+                ws.getCell(`F${r}`).value = 1; ws.getCell(`F${r}`).alignment = { horizontal:'right' };
+                ws.getCell(`G${r}`).value = m.totales.PU; ws.getCell(`G${r}`).numFmt = '"$" #,##0.00'; ws.getCell(`G${r}`).font = fontBold;
+                r++;
+                // Descripción
+                ws.mergeCells(`A${r}:H${r}`);
+                const cD = ws.getCell(`A${r}`); cD.value = (m.descripcion||'').toUpperCase(); cD.font = fontReg; cD.alignment = { horizontal:'left', vertical:'top', wrapText:true };
+                ws.getRow(r).height = 50;
+                r++;
+
+                // Bloques por tipo
+                TIPOS.forEach(t => {
+                    // etiqueta
+                    ws.mergeCells(`A${r}:B${r}`); ws.getCell(`A${r}`).value = t; ws.getCell(`A${r}`).font = fontBold;
+                    ws.getCell(`D${r}`).value = 0; ws.getCell(`D${r}`).alignment = { horizontal:'center' };
+                    ws.getCell(`E${r}`).value = ''; 
+                    r++;
+                    const items = m.insumos.filter(i => i.tipo===t);
+                    items.forEach(it => {
+                        const imp = (Number(it.pu)||0)*(Number(it.cantidad)||0);
+                        const p = m.totales.CD>0 ? imp/m.totales.CD : 0;
+                        ws.getCell(`A${r}`).value = it.codigo; ws.getCell(`A${r}`).font = fontReg;
+                        ws.getCell(`B${r}`).value = it.concepto; ws.getCell(`B${r}`).font = fontReg;
+                        ws.getCell(`C${r}`).value = it.unidad; ws.getCell(`C${r}`).alignment = { horizontal:'center' }; ws.getCell(`C${r}`).font = fontReg;
+                        ws.getCell(`D${r}`).value = Number(it.pu)||0; ws.getCell(`D${r}`).numFmt = '"$" #,##0.00'; ws.getCell(`D${r}`).alignment = { horizontal:'right' }; ws.getCell(`D${r}`).font = fontReg;
+                        ws.getCell(`E${r}`).value = '*'; ws.getCell(`E${r}`).alignment = { horizontal:'center' }; ws.getCell(`E${r}`).font = fontReg;
+                        ws.getCell(`F${r}`).value = Number(it.cantidad)||0; ws.getCell(`F${r}`).numFmt = '#,##0.0000'; ws.getCell(`F${r}`).alignment = { horizontal:'right' }; ws.getCell(`F${r}`).font = fontReg;
+                        ws.getCell(`G${r}`).value = imp; ws.getCell(`G${r}`).numFmt = '"$" #,##0.00'; ws.getCell(`G${r}`).alignment = { horizontal:'right' }; ws.getCell(`G${r}`).font = fontReg;
+                        ws.getCell(`H${r}`).value = p; ws.getCell(`H${r}`).numFmt = '0.00%'; ws.getCell(`H${r}`).alignment = { horizontal:'right' }; ws.getCell(`H${r}`).font = fontReg;
+                        r++;
+                    });
+                    // subtotal
+                    ws.mergeCells(`A${r}:B${r}`); ws.getCell(`A${r}`).value = 'SUBTOTAL:'; ws.getCell(`A${r}`).font = fontBold;
+                    ws.getCell(`C${r}`).value = t; ws.getCell(`C${r}`).font = fontBold;
+                    ws.getCell(`D${r}`).value = 0; ws.getCell(`D${r}`).alignment = { horizontal:'center' };
+                    ws.getCell(`G${r}`).value = m.totales.subs[t]; ws.getCell(`G${r}`).numFmt = '"$" #,##0.00'; ws.getCell(`G${r}`).alignment = { horizontal:'right' }; ws.getCell(`G${r}`).font = fontBold;
+                    ws.getCell(`H${r}`).value = m.totales.CD>0 ? m.totales.subs[t]/m.totales.CD : 0; ws.getCell(`H${r}`).numFmt = '0.00%'; ws.getCell(`H${r}`).alignment = { horizontal:'right' }; ws.getCell(`H${r}`).font = fontBold;
+                    for (let col=1;col<=8;col++){ const c=ws.getCell(`${String.fromCharCode(64+col)}${r}`); c.border = { top:thin, bottom:thin }; }
+                    r++;
+                });
+
+                // (CD)
+                ws.mergeCells(`A${r}:F${r}`); ws.getCell(`A${r}`).value = '(CD) Costo directo'; ws.getCell(`A${r}`).font = fontBold;
+                ws.getCell(`G${r}`).value = m.totales.CD; ws.getCell(`G${r}`).numFmt = '"$" #,##0.00'; ws.getCell(`G${r}`).alignment = { horizontal:'right' }; ws.getCell(`G${r}`).font = fontBold;
+                ws.getCell(`H${r}`).value = 1; ws.getCell(`H${r}`).numFmt = '0.00%'; ws.getCell(`H${r}`).alignment = { horizontal:'right' }; ws.getCell(`H${r}`).font = fontBold;
+                r++;
+                // (CI)
+                ws.mergeCells(`A${r}:E${r}`); ws.getCell(`A${r}`).value = '(CI) Indirecto ÚNICO'; ws.getCell(`A${r}`).font = fontBold;
+                ws.getCell(`F${r}`).value = m.indirecto; ws.getCell(`F${r}`).numFmt = '0.00%'; ws.getCell(`F${r}`).alignment = { horizontal:'right' }; ws.getCell(`F${r}`).font = fontBold;
+                ws.getCell(`G${r}`).value = m.totales.CI; ws.getCell(`G${r}`).numFmt = '"$" #,##0.00'; ws.getCell(`G${r}`).alignment = { horizontal:'right' }; ws.getCell(`G${r}`).font = fontBold;
+                r++;
+                // PRECIO UNITARIO (doble borde inferior)
+                ws.mergeCells(`A${r}:F${r}`); ws.getCell(`A${r}`).value = 'PRECIO UNITARIO = (CD + CI)'; ws.getCell(`A${r}`).font = fontBold;
+                ws.getCell(`G${r}`).value = m.totales.PU; ws.getCell(`G${r}`).numFmt = '"$" #,##0.00'; ws.getCell(`G${r}`).alignment = { horizontal:'right' }; ws.getCell(`G${r}`).font = fontBold;
+                for (let col=1;col<=8;col++){ const c=ws.getCell(`${String.fromCharCode(64+col)}${r}`); c.border = { top:med, bottom:double }; }
+                r++;
+                // letra
+                ws.mergeCells(`A${r}:H${r}`);
+                const cL = ws.getCell(`A${r}`); cL.value = m.totales.letra; cL.font = { size:8, name:'Arial', italic:true }; cL.alignment = { horizontal:'left' };
+                r += 3;
+                // pie
+                ws.mergeCells(`A${r}:H${r}`);
+                const cPie = ws.getCell(`A${r}`); cPie.value = 'DIRECTOR GENERAL: INGENIERO JULIO CESAR RODRIGUEZ'; cPie.font = { bold:true, size:8, name:'Arial' }; cPie.alignment = { horizontal:'center' };
+
+                const buf = await wb.xlsx.writeBuffer();
+                const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'Matriz_' + (m.analisis || m.obra || 'analisis').replace(/[^a-zA-Z0-9]/g,'_') + '.xlsx';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                mostrarAlertaLoreto('Archivo Excel generado.', 'success');
+            } catch (e) {
+                mostrarAlertaLoreto('Error al generar Excel: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.innerHTML = old; lucide.createIcons();
+            }
+        });
+
+        // ====== CARGAR DESDE BASE MATRICES (si viene de "Abrir") ======
+        function cargarDesdeMatriz(m){
+            const set = (id, v) => { const el = document.getElementById(id); if (el && v!=null) el.value = v; };
+            set('m-cliente', m.cliente); set('m-domicilio', m.domicilio); set('m-concurso', m.concurso);
+            set('m-obra', m.obra); set('m-lugar', m.lugar); set('m-fecha', m.fecha);
+            set('m-inicio', m.inicio); set('m-fin', m.fin); set('m-duracion', m.duracion);
+            set('m-partida', m.partida); set('m-analisis', m.analisis); set('m-analisis-no', m.analisisNo);
+            set('m-indirecto', m.indirecto); set('m-descripcion', m.descripcion);
+            insumos = (m.insumos || []).map(it => ({ tipo:it.tipo||'MATERIALES', codigo:it.codigo||'', concepto:it.concepto||'', unidad:it.unidad||'', pu:Number(it.pu)||0, cantidad:Number(it.cantidad)||0 }));
+            renderInsumos();
+        }
+
+        // ====== INICIALIZACIÓN ======
+        document.getElementById('m-indirecto').addEventListener('input', recalcular);
+        (function init(){
+            const ed = localStorage.getItem('matriz_editar');
+            if (ed) {
+                try { cargarDesdeMatriz(JSON.parse(ed)); } catch(e){ agregarInsumo(); }
+                localStorage.removeItem('matriz_editar');
+            } else {
+                // precargar un insumo de ejemplo para que se vea el cálculo
+                agregarInsumo({ tipo:'MATERIALES', codigo:'VLV-CHEK-2"Ø', concepto:'VÁLVULA DE RETENCIÓN 2"', unidad:'PIEZA', pu:2517.63, cantidad:1 });
+            }
+            recalcular();
+            lucide.createIcons();
+        })();
+    </script>
+</body>
+</html>
