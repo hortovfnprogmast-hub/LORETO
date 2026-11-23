@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Conceptos | Loreto Ingeniería</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="loreto-common.js"></script>
+    <style>
+        :root { --primary-blue:#263fa4; --light-blue:#eef2ff; --bg-color:#f8fafc; --text-main:#1e293b; --text-muted:#64748b; --border-color:#e2e8f0; --success-green:#10b981; --teal:#14a981; --rojo:#dc2626; }
+        body { margin:0; font-family:'Inter',sans-serif; background:var(--bg-color); display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        .header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:white; border-bottom:1px solid var(--border-color); z-index:50; }
+        .header-left { display:flex; align-items:center; gap:15px; }
+        .menu-btn { background:none; border:none; cursor:pointer; color:var(--text-main); padding:5px; }
+        .header-title { margin:0; font-size:15px; font-weight:700; color:var(--primary-blue); }
+        .header-right { display:flex; align-items:center; gap:12px; }
+        .user-initial { width:35px; height:35px; border-radius:50%; background:var(--primary-blue); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; }
+        .main-layout { display:flex; flex:1; overflow:hidden; }
+        .sidebar { width:260px; background:white; border-right:1px solid var(--border-color); overflow-y:auto; transition:transform .3s ease; display:flex; flex-direction:column; }
+        @media (max-width:768px){ .sidebar{ position:fixed; height:calc(100vh - 60px); transform:translateX(-100%); z-index:40; } .sidebar.open{ transform:translateX(0);} .header-title{ display:none;} }
+        .content { flex:1; overflow-y:auto; padding:18px; }
+        .card { background:white; border-radius:14px; padding:22px; box-shadow:0 4px 18px rgba(0,0,0,.06); border:1px solid var(--border-color); max-width:1100px; margin:0 auto; }
+        .card h2 { margin:0 0 4px 0; color:var(--primary-blue); font-size:18px; }
+        .card .sub { color:var(--text-muted); font-size:12px; margin:0 0 16px 0; }
+        .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+        .toolbar input, .toolbar select { padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; }
+        .toolbar .grow { flex:1; min-width:180px; }
+        .btn { padding:9px 14px; border:none; border-radius:7px; font-weight:700; cursor:pointer; font-size:12px; color:white; display:inline-flex; align-items:center; gap:6px; }
+        .btn-azul { background:var(--primary-blue); } .btn-azul:hover{ background:#1a2a6e; }
+        .btn-teal { background:var(--teal); } .btn-teal:hover{ background:#108c6a; }
+        .btn-rojo { background:var(--rojo); } .btn-rojo:hover{ background:#b91c1c; }
+        .btn-gris { background:#64748b; } .btn-gris:hover{ background:#475569; }
+        .btn-sm { padding:5px 9px; font-size:11px; border-radius:5px; }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        thead th { background:#217346; color:white; padding:10px; text-align:left; font-size:11px; text-transform:uppercase; }
+        tbody td { padding:8px 10px; border-bottom:1px solid var(--border-color); }
+        tbody tr:hover { background:var(--light-blue); }
+        .pu { color:var(--success-green); font-weight:700; text-align:right; }
+        .acciones { display:flex; gap:6px; }
+        .empty { text-align:center; color:var(--text-muted); padding:40px; font-size:14px; }
+        .loader { text-align:center; color:var(--text-muted); padding:30px; }
+        .badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; background:var(--light-blue); color:var(--primary-blue); }
+        /* modal */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
+        .modal-overlay.show { display:flex; }
+        .modal { background:white; border-radius:12px; padding:22px; width:100%; max-width:480px; box-shadow:0 12px 32px rgba(0,0,0,.25); }
+        .modal h3 { margin:0 0 14px 0; color:var(--primary-blue); font-size:16px; }
+        .field { margin-bottom:12px; }
+        .field label { display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px; }
+        .field input, .field select, .field textarea { width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; box-sizing:border-box; font-family:inherit; }
+        .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="menu-btn" id="toggle-menu"><i data-lucide="menu"></i></button>
+            <img src="https://i.ibb.co/mC4fV6TG/LOGOTIPO-2.jpg" alt="Logo" style="height:35px; width:auto; object-fit:contain;">
+            <h1 class="header-title">Base Conceptos</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-initial" id="user-initial">U</div>
+            <img src="https://i.ibb.co/8Lk54Gkb/LOGOTIPO-1.jpg" alt="User" height="35" style="border-radius:4px;">
+        </div>
+    </header>
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="content">
+            <div class="card">
+                <h2>Base de Conceptos</h2>
+                <p class="sub">Catálogo de insumos (materiales, mano de obra, equipo) que alimenta el constructor de matrices. Puedes importar tu BDMAESTRA desde CSV.</p>
+                <div class="toolbar">
+                    <select id="filtro-tipo"><option value="">Todos los tipos</option><option>MATERIALES</option><option>MANO DE OBRA</option><option>EQUIPO Y HERRAMIENTA</option></select>
+                    <input id="buscar" class="grow" placeholder="Buscar por código o concepto...">
+                    <button class="btn btn-teal" id="btn-agregar"><i data-lucide="plus"></i> Agregar concepto</button>
+                    <button class="btn btn-azul" id="btn-importar"><i data-lucide="upload"></i> Importar CSV</button>
+                    <button class="btn btn-gris" id="btn-recargar"><i data-lucide="refresh-cw"></i></button>
+                    <input type="file" id="file-csv" accept=".csv" style="display:none;">
+                </div>
+                <div id="loader" class="loader">Cargando conceptos...</div>
+                <div class="table-wrap">
+                <table id="tabla" style="display:none;">
+                    <thead><tr><th>Tipo</th><th>Código</th><th>Concepto</th><th>Unidad</th><th style="text-align:right">P.U.</th><th>Acciones</th></tr></thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+                </div>
+                <div id="empty" class="empty" style="display:none;">No hay conceptos. Agrega uno o importa tu BDMAESTRA (CSV: Tipo,Código,Concepto,Unidad,P.U.).</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal agregar/editar -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <h3 id="modal-titulo">Agregar concepto</h3>
+            <input type="hidden" id="c-id">
+            <div class="field"><label>Tipo</label><select id="c-tipo"><option>MATERIALES</option><option>MANO DE OBRA</option><option>EQUIPO Y HERRAMIENTA</option></select></div>
+            <div class="field"><label>Código</label><input id="c-codigo" placeholder="Ej. ABZ-OMG-6&quot;"></div>
+            <div class="field"><label>Concepto</label><textarea id="c-concepto" rows="2"></textarea></div>
+            <div class="field"><label>Unidad</label><input id="c-unidad" placeholder="Ej. PIEZA, KG, METRO"></div>
+            <div class="field"><label>P. Unitario</label><input type="number" step="any" id="c-pu" placeholder="0.00"></div>
+            <div class="modal-actions">
+                <button class="btn btn-gris" id="btn-cancelar">Cancelar</button>
+                <button class="btn btn-teal" id="btn-guardar">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = { apiKey:"AIzaSyBjlemFwGQbA3mM7UhOZAVGaam1z1Xixr8", authDomain:"loretoapp-2ca14.firebaseapp.com", projectId:"loretoapp-2ca14", storageBucket:"loretoapp-2ca14.firebasestorage.app", messagingSenderId:"794212467801", appId:"1:794212467801:web:f0bf6fd01579f0aec35d48" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        fetch('menu.html').then(r=>r.text()).then(html=>{ document.getElementById('sidebar').innerHTML=html; lucide.createIcons(); filtrarMenuPorPrivilegio(); const lm=document.getElementById('link-base-conceptos'); if(lm) lm.classList.add('active'); });
+        initLogoutFlotante(); lucide.createIcons();
+        document.getElementById('user-initial').innerText=(localStorage.getItem('nombre')||'U').charAt(0).toUpperCase();
+        document.getElementById('toggle-menu').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));
+
+        const TIPOS = ['MATERIALES','MANO DE OBRA','EQUIPO Y HERRAMIENTA'];
+        let todos = [];
+        function esc(s){ return String(s==null?'':s).replace(/</g,'&lt;'); }
+
+        async function cargar(){
+            document.getElementById('loader').style.display='block';
+            document.getElementById('tabla').style.display='none';
+            document.getElementById('empty').style.display='none';
+            try {
+                const snap = await db.collection('conceptos').get();
+                todos = []; snap.forEach(d => todos.push(Object.assign({id:d.id}, d.data())));
+                document.getElementById('loader').innerText = todos.length + ' conceptos cargados.';
+                render();
+            } catch(e){ document.getElementById('loader').innerText='Error: '+e.message; }
+        }
+        function render(){
+            const q = document.getElementById('buscar').value.toLowerCase();
+            const ft = document.getElementById('filtro-tipo').value;
+            const fil = todos.filter(c => (!ft || c.tipo===ft) && ((c.codigo||'')+' '+(c.concepto||'')).toLowerCase().includes(q));
+            const tb = document.getElementById('tbody'); tb.innerHTML='';
+            if (fil.length===0){ document.getElementById('loader').style.display='none'; document.getElementById('tabla').style.display='none'; document.getElementById('empty').style.display='block'; return; }
+            fil.slice(0,500).forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td><span class="badge">'+esc(c.tipo)+'</span></td><td>'+esc(c.codigo)+'</td><td>'+esc(c.concepto)+'</td><td>'+esc(c.unidad)+'</td><td class="pu">$'+(Number(c.pu)||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'+
+                    '<td class="acciones"><button class="btn btn-azul btn-sm" data-edit="'+c.id+'"><i data-lucide="pencil"></i></button><button class="btn btn-rojo btn-sm" data-elim="'+c.id+'"><i data-lucide="trash-2"></i></button></td>';
+                tb.appendChild(tr);
+            });
+            tb.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editar(b.dataset.edit)));
+            tb.querySelectorAll('[data-elim]').forEach(b => b.addEventListener('click', () => eliminar(b.dataset.elim)));
+            document.getElementById('loader').style.display='none';
+            document.getElementById('tabla').style.display='table';
+            document.getElementById('empty').style.display='none';
+            lucide.createIcons();
+        }
+        // modal
+        function abrirModal(c){
+            document.getElementById('c-id').value = c.id || '';
+            document.getElementById('c-tipo').value = c.tipo || 'MATERIALES';
+            document.getElementById('c-codigo').value = c.codigo || '';
+            document.getElementById('c-concepto').value = c.concepto || '';
+            document.getElementById('c-unidad').value = c.unidad || '';
+            document.getElementById('c-pu').value = c.pu || '';
+            document.getElementById('modal-titulo').innerText = c.id ? 'Editar concepto' : 'Agregar concepto';
+            document.getElementById('modal').classList.add('show');
+        }
+        function cerrarModal(){ document.getElementById('modal').classList.remove('show'); }
+        document.getElementById('btn-agregar').addEventListener('click', () => abrirModal({}));
+        document.getElementById('btn-cancelar').addEventListener('click', cerrarModal);
+        document.getElementById('modal').addEventListener('click', e => { if(e.target.id==='modal') cerrarModal(); });
+        function editar(id){ const c = todos.find(x=>x.id===id); if(c) abrirModal(c); }
+        document.getElementById('btn-guardar').addEventListener('click', async () => {
+            const data = {
+                tipo: document.getElementById('c-tipo').value,
+                codigo: document.getElementById('c-codigo').value.trim(),
+                concepto: document.getElementById('c-concepto').value.trim(),
+                unidad: document.getElementById('c-unidad').value.trim(),
+                pu: parseFloat(document.getElementById('c-pu').value) || 0
+            };
+            if (!data.concepto) { mostrarAlertaLoreto('El concepto es obligatorio.', 'warning'); return; }
+            const id = document.getElementById('c-id').value;
+            try {
+                if (id) await db.collection('conceptos').doc(id).set(data, { merge:true });
+                else { data.fecha_creacion = firebase.firestore.FieldValue.serverTimestamp(); await db.collection('conceptos').add(data); }
+                cerrarModal(); mostrarAlertaLoreto('Concepto guardado.', 'success'); cargar();
+            } catch(e){ mostrarAlertaLoreto('Error: '+e.message, 'error'); }
+        });
+        function eliminar(id){
+            mostrarConfirmLoreto('¿Eliminar este concepto?', async () => {
+                try { await db.collection('conceptos').doc(id).delete(); mostrarAlertaLoreto('Concepto eliminado.', 'success'); cargar(); }
+                catch(e){ mostrarAlertaLoreto('Error: '+e.message, 'error'); }
+            });
+        }
+        // CSV import (Tipo,Código,Concepto,Unidad,PU [, Fecha])
+        document.getElementById('btn-importar').addEventListener('click', () => document.getElementById('file-csv').click());
+        document.getElementById('file-csv').addEventListener('change', async (e) => {
+            const file = e.target.files[0]; if(!file) return;
+            const txt = await file.text();
+            const lines = txt.split(/\r?\n/);
+            let count = 0; const batch = db.batch();
+            for (let i=0;i<lines.length;i++){
+                const line = lines[i].trim(); if(!line) continue;
+                const cols = parseCSVLine(line);
+                if (i===0 && /tipo|código|codigo/i.test(cols[0])) continue; // saltar encabezado
+                const tipo = (cols[0]||'').trim(); if (!TIPOS.includes(tipo)) continue;
+                const concepto = (cols[2]||'').trim(); if(!concepto) continue;
+                const ref = db.collection('conceptos').doc();
+                batch.set(ref, {
+                    tipo: tipo,
+                    codigo: (cols[1]||'').trim(),
+                    concepto: concepto,
+                    unidad: (cols[3]||'').trim(),
+                    pu: parseFloat((cols[4]||'0').replace(/[^0-9.-]/g,'')) || 0,
+                    fecha_creacion: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                count++;
+                if (count % 400 === 0) { await batch.commit(); } // Firestore batch max 500
+            }
+            try { await batch.commit(); mostrarAlertaLoreto(count+' conceptos importados.', 'success'); cargar(); }
+            catch(err){ mostrarAlertaLoreto('Error al importar: '+err.message, 'error'); }
+            e.target.value = '';
+        });
+        function parseCSVLine(line){
+            // soporta comillas y comas dentro de comillas
+            const out=[]; let cur=''; let inq=false;
+            for (let i=0;i<line.length;i++){ const ch=line[i];
+                if (inq){ if(ch==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else inq=false; } else cur+=ch; }
+                else { if(ch==='"') inq=true; else if(ch===','){ out.push(cur); cur=''; } else cur+=ch; }
+            }
+            out.push(cur); return out;
+        }
+        document.getElementById('buscar').addEventListener('input', render);
+        document.getElementById('filtro-tipo').addEventListener('change', render);
+        document.getElementById('btn-recargar').addEventListener('click', cargar);
+        cargar();
+    </script>
+</body>
+</html>
